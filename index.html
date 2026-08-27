@@ -1635,7 +1635,7 @@ const CAMPOS = {
   tipoReclamo:  { rotulo:'Tipo de reclamo',      grupo:'rus' },
   fechaVenc:    { rotulo:'Vencimiento de la tarea', grupo:'rus', fecha:true },
   plazo:        { rotulo:'Plazo',                grupo:'rus' },
-  prioridad:    { rotulo:'Prioridad en RUS',     grupo:'rus' },
+  prioridad:    { rotulo:'Prioridad',            grupo:'rus' },
   estadoRus:    { rotulo:'Estado en RUS',        grupo:'rus' },
   emisor:       { rotulo:'Emisor',               grupo:'rus' },
   destinatario: { rotulo:'Destinatario',         grupo:'rus' },
@@ -1785,6 +1785,16 @@ function deducirCategoria(valor, tipoReclamo, tarea){
 }
 const ROTULO_CATEGORIA = { tercero:'Tercero', cleas:'CLEAS', asegurado:'Asegurado', otro:'Otro', '':'Sin definir' };
 
+/** RUS manda al tramitador en dos lugares y con dos formatos: EMISOR viene
+ *  limpio ("VELAZQUEZ VERONICA ROMINA") y DUEÑO DEL SINIESTRO con el usuario
+ *  adelante ("verove - VELAZQUEZ VERONICA ROMINA"). Son la misma persona. */
+function limpiarPersona(v){
+  const t = String(v == null ? '' : v).trim();
+  const m = /^\S{1,20}\s*-\s*(.+)$/.exec(t);
+  return (m ? m[1] : t).trim();
+}
+const tramitadorDe = reg => limpiarPersona(reg.emisor) || limpiarPersona(reg.duenio);
+
 /* ---------- marcas X ---------- */
 /** Un siniestro está terminado cuando ya se facturó: ése es el final del
  *  circuito. El cierre solo no alcanza — si está cerrado pero sin facturar,
@@ -1903,6 +1913,8 @@ function cargar(){
     if (d && Array.isArray(d.siniestros)){
       ESTADO = { version:1, siniestros:d.siniestros, ajustes:{...AJUSTES_POR_DEFECTO, ...(d.ajustes||{})}, meta:d.meta||{} };
       ESTADO.ajustes.respaldo = { ...AJUSTES_POR_DEFECTO.respaldo, ...(ESTADO.ajustes.respaldo||{}) };
+      // Lo cargado antes de que el tramitador saliera del emisor: se completa solo.
+      ESTADO.siniestros.forEach(s => { if (!s.tramitador) s.tramitador = tramitadorDe(s); });
     }
   } catch(e){ /* arrancamos vacíos */ }
 }
@@ -1994,6 +2006,7 @@ function armarRegistros(filas, reconocido){
     }
     reg.nro = normalizarNro(reg.nro);
     reg.categoria = deducirCategoria(reg.categoria, reg.tipoReclamo, reg.tarea);
+    if (!reg.tramitador) reg.tramitador = tramitadorDe(reg);
     salida.push(reg);
   }
   return salida;
@@ -2383,6 +2396,18 @@ function alternarPaso(id, campo){
     avisar('Listo, el ' + (s.nro || 'siniestro') + ' volvió a la lista.', 'bien');
 }
 
+/** Desplegable que además conserva un valor que no esté en la lista. */
+function campoSelect(s, campo, opciones, rotulos){
+  const actual = s[campo] || '';
+  const lista = opciones.slice();
+  if (actual && !lista.includes(actual)) lista.push(actual);
+  return '<div class="campo"><label>' + esc(CAMPOS[campo].rotulo) + '</label>' +
+    '<select data-campo="' + campo + '">' +
+    lista.map(v => '<option value="' + esc(v) + '"' + (actual === v ? ' selected' : '') + '>' +
+      esc((rotulos && rotulos[v]) || v || '—') + '</option>').join('') +
+    '</select></div>';
+}
+
 function campoTexto(s, campo, tipo){
   const c = CAMPOS[campo];
   const valor = s[campo] || '';
@@ -2407,11 +2432,6 @@ function abrirDetalle(id){
     '<button class="btn btn-icono btn-fantasma" id="cerrarPanel" aria-label="Cerrar">' + icono('x') + '</button>';
 
   const revisado = s._u.diasSinVer;
-  const rus = ['tarea','tipoReclamo','fechaVenc','plazo','prioridad','estadoRus','fechaAsign','fechaSin','emisor','duenio','usuarioIng']
-    .filter(c => s[c])
-    .map(c => '<div class="campo"><label>' + esc(CAMPOS[c].rotulo) + '</label>' +
-              '<div class="dato-fijo">' + esc(CAMPOS[c].fecha ? formatearFecha(s[c]) : s[c]) + '</div></div>').join('');
-
   const historial = (s.historial || []).slice().reverse().slice(0, 14).map(h => {
     const f = new Date(h.f);
     const cuando = isNaN(f) ? '' : f.toLocaleDateString('es-AR', { day:'2-digit', month:'2-digit', year:'numeric' }) +
@@ -2433,12 +2453,14 @@ function abrirDetalle(id){
 
     '<div class="bloque"><div class="bloque-tit">Datos del siniestro</div><div class="campos">' +
       campoTexto(s,'dominio') + campoTexto(s,'vehiculo') +
-      '<div class="campo"><label>Asegurado o tercero</label><select data-campo="categoria">' +
-        ['','tercero','cleas','asegurado','otro'].map(v =>
-          '<option value="' + v + '"' + ((s.categoria || '') === v ? ' selected' : '') + '>' + ROTULO_CATEGORIA[v] + '</option>').join('') +
-      '</select></div>' +
-      campoTexto(s,'telefono') + campoTexto(s,'fechaDeriv') + campoTexto(s,'fechaCierre') +
-      campoTexto(s,'tramitador') + campoTexto(s,'km') + campoTexto(s,'fechaOfrec') +
+      campoSelect(s,'categoria', ['','tercero','cleas','asegurado','otro'], ROTULO_CATEGORIA) +
+      campoTexto(s,'telefono') +
+      campoTexto(s,'tramitador') +
+      campoSelect(s,'prioridad', ['','Alta','Media','Baja']) +
+      campoTexto(s,'fechaAsign') + campoTexto(s,'fechaSin') +
+      campoTexto(s,'fechaDeriv') + campoTexto(s,'fechaVenc') +
+      campoTexto(s,'fechaCierre') + campoTexto(s,'fechaOfrec') +
+      campoTexto(s,'km') +
       campoTexto(s,'observaciones','area') +
     '</div></div>' +
 
@@ -2446,8 +2468,6 @@ function abrirDetalle(id){
       '<div class="campo ancho"><label>Qué falta hacer / con quién hablé</label>' +
       '<textarea data-campo="notas" placeholder="Ej: esperando presupuesto del taller, llamar el lunes…">' + esc(s.notas || '') + '</textarea></div>' +
     '</div></div>' +
-
-    (rus ? '<div class="bloque"><div class="bloque-tit">Lo que trajo RUS</div><div class="campos">' + rus + '</div></div>' : '') +
 
     '<div class="bloque"><div class="bloque-tit">Movimientos</div><div class="historial">' + historial + '</div></div>';
 

@@ -86,8 +86,17 @@ entera.
 vehículo, el contador de días sin revisar, y los tres pasos —**Informe →
 Cierre → Facturado**— que se marcan tocándolos.
 
-**Abriendo el detalle** se editan los datos, se escriben notas ("llamar al
-taller el lunes") y se ve el historial de todo lo que se fue haciendo.
+**Abriendo el detalle** están todos los datos en un solo bloque y **todos se
+pueden editar**, incluso los que llegaron de RUS: si algo vino mal, se corrige a
+mano. El tramitador se completa solo con el emisor que manda RUS (que es la
+misma persona que figura como dueño del siniestro, sólo que sin el usuario
+adelante). Abajo van las notas propias ("llamar al taller el lunes") y el
+historial de todo lo que se fue haciendo.
+
+Lo que RUS manda pero no aporta al seguimiento — nombre de la tarea, tipo de
+reclamo, plazo, estado y usuario que lo ingresó — no se muestra. Se sigue
+guardando igual, porque de ahí sale si el siniestro es de tercero o de
+asegurado.
 
 ---
 
