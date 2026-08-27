@@ -1830,12 +1830,48 @@ function calcularUrgencia(s){
 }
 
 /* ---------- guardado ---------- */
+/** Saca los campos vacíos antes de guardar. Más de la mitad de lo que se
+ *  guardaba eran comillas vacías de columnas que la planilla no usa. */
+function compactar(estado){
+  return {
+    version: estado.version,
+    ajustes: estado.ajustes,
+    meta: estado.meta,
+    siniestros: estado.siniestros.map(s => {
+      const o = {};
+      for (const k in s){
+        if (k.charAt(0) === '_') continue;                    // datos calculados al vuelo
+        const v = s[k];
+        if (v === '' || v === null || v === undefined) continue;
+        if (Array.isArray(v) && !v.length) continue;
+        o[k] = v;
+      }
+      return o;
+    })
+  };
+}
+
+/** Cuánto lugar ocupa y cuánto queda. El tope de los navegadores ronda los 5 MB. */
+const TOPE_GUARDADO = 5 * 1024 * 1024;
+function usoGuardado(){
+  try {
+    const crudo = localStorage.getItem(CLAVE_GUARDADO) || '';
+    const bytes = new Blob([crudo]).size;
+    return { bytes: bytes, porciento: Math.min(100, Math.round(bytes / TOPE_GUARDADO * 1000) / 10) };
+  } catch(e){ return { bytes:0, porciento:0 }; }
+}
+function enTamano(bytes){
+  if (bytes < 1024) return bytes + ' B';
+  if (bytes < 1024*1024) return (bytes/1024).toFixed(0) + ' KB';
+  return (bytes/1024/1024).toFixed(2) + ' MB';
+}
+
 function guardar(){
   try {
-    localStorage.setItem(CLAVE_GUARDADO, JSON.stringify(ESTADO));
+    localStorage.setItem(CLAVE_GUARDADO, JSON.stringify(compactar(ESTADO)));
     return true;
   } catch(e){
-    avisar('No pude guardar en este navegador. Bajá un respaldo para no perder los datos.', 'mal');
+    avisar('Se llenó el espacio del navegador. Bajá un respaldo (.json) ya mismo desde Exportar.', 'mal');
     return false;
   }
 }
@@ -1849,6 +1885,27 @@ function cargar(){
     }
   } catch(e){ /* arrancamos vacíos */ }
 }
+const TEXTO_HITO = { revision:'Lo revisaste', alta:'Agregado a la lista' };
+const TOPE_HISTORIAL = 40;
+
+/** Anota un movimiento. Si es otra revisión del mismo día, actualiza la
+ *  anterior en vez de sumar una nueva: si no, el historial crece al infinito. */
+function anotar(s, tipo, texto){
+  const ahora = new Date().toISOString();
+  const hist = s.historial || (s.historial = []);
+  const ultima = hist[hist.length - 1];
+  if (tipo === 'revision' && ultima && ultima.t === 'revision' &&
+      String(ultima.f).slice(0,10) === ahora.slice(0,10)){
+    ultima.f = ahora;
+  } else {
+    const hito = { f:ahora, t:tipo };
+    if (texto && texto !== TEXTO_HITO[tipo]) hito.d = texto;
+    hist.push(hito);
+  }
+  if (hist.length > TOPE_HISTORIAL) s.historial = hist.slice(-TOPE_HISTORIAL);
+  return ahora;
+}
+
 const nuevoId = () => 'S' + Date.now().toString(36) + Math.random().toString(36).slice(2,7);
 const porNro = () => {
   const m = new Map();
@@ -1966,7 +2023,7 @@ function aplicarImportacion(cruce, opciones){
     const s = { id:nuevoId(), lote, creado:ahora, actualizado:ahora, ultimaRevision:null, notas:'', historial:[] };
     for (const campo in CAMPOS) s[campo] = reg[campo] || '';
     s.nro = reg.nro;
-    s.historial.push({ f:ahora, t:'alta', d:'Agregado desde ' + (opciones.nombreArchivo || 'una importación') });
+    anotar(s, 'alta', 'Agregado desde ' + (opciones.nombreArchivo || 'una importación'));
     ESTADO.siniestros.push(s);
     agregados.push(s.nro);
   });
@@ -1991,8 +2048,7 @@ function aplicarImportacion(cruce, opciones){
       }
       if (cambio){
         r.existente.actualizado = ahora;
-        r.existente.historial = r.existente.historial || [];
-        r.existente.historial.push({ f:ahora, t:'import', d:'Datos actualizados desde ' + (opciones.nombreArchivo || 'una importación') });
+        anotar(r.existente, 'import', 'Datos actualizados desde ' + (opciones.nombreArchivo || 'una importación'));
         actualizados++;
       }
     });
@@ -2251,11 +2307,9 @@ const buscarPorId = id => ESTADO.siniestros.find(s => s.id === id);
 function marcarRevisado(id, silencioso){
   const s = buscarPorId(id);
   if (!s) return;
-  const ahora = new Date().toISOString();
+  const ahora = anotar(s, 'revision');
   s.ultimaRevision = ahora;
   s.actualizado = ahora;
-  s.historial = s.historial || [];
-  s.historial.push({ f:ahora, t:'revision', d:'Lo revisaste' });
   guardar();
   if (!silencioso) avisar('Anotado: revisaste el ' + (s.nro || 'siniestro') + ' hoy', 'bien');
   render();
@@ -2269,11 +2323,9 @@ function alternarPaso(id, campo){
   const estaba = esMarca(s[campo]);
   s[campo] = estaba ? '' : 'X';
   if (campo === 'cierre' && !estaba && !s.fechaCierre) s.fechaCierre = hoyISO();
-  const ahora = new Date().toISOString();
+  const ahora = anotar(s, 'paso', (estaba ? 'Desmarcaste' : 'Marcaste') + ' ' + CAMPOS[campo].rotulo.toLowerCase());
   s.actualizado = ahora;
   s.ultimaRevision = ahora;
-  s.historial = s.historial || [];
-  s.historial.push({ f:ahora, t:'paso', d:(estaba ? 'Desmarcaste' : 'Marcaste') + ' ' + CAMPOS[campo].rotulo.toLowerCase() });
   guardar();
   render();
   if (idAbierto === id) abrirDetalle(id);
@@ -2320,8 +2372,9 @@ function abrirDetalle(id){
     const f = new Date(h.f);
     const cuando = isNaN(f) ? '' : f.toLocaleDateString('es-AR', { day:'2-digit', month:'2-digit', year:'numeric' }) +
                                    ' · ' + f.toLocaleTimeString('es-AR', { hour:'2-digit', minute:'2-digit' });
+    const texto = h.d || TEXTO_HITO[h.t] || 'Movimiento';
     return '<div class="hito"><div class="hito-punto' + (h.t === 'revision' ? '' : ' gris') + '"></div>' +
-           '<div class="hito-txt"><b>' + esc(h.d) + '</b><time>' + esc(cuando) + '</time></div></div>';
+           '<div class="hito-txt"><b>' + esc(texto) + '</b><time>' + esc(cuando) + '</time></div></div>';
   }).join('') || '<p style="color:var(--texto-3);font-size:13px">Todavía no hay movimientos.</p>';
 
   $('#panelCuerpo').innerHTML =
@@ -2338,7 +2391,7 @@ function abrirDetalle(id){
       campoTexto(s,'dominio') + campoTexto(s,'vehiculo') +
       '<div class="campo"><label>Asegurado o tercero</label><select data-campo="categoria">' +
         ['','tercero','cleas','asegurado','otro'].map(v =>
-          '<option value="' + v + '"' + (s.categoria === v ? ' selected' : '') + '>' + ROTULO_CATEGORIA[v] + '</option>').join('') +
+          '<option value="' + v + '"' + ((s.categoria || '') === v ? ' selected' : '') + '>' + ROTULO_CATEGORIA[v] + '</option>').join('') +
       '</select></div>' +
       campoTexto(s,'telefono') + campoTexto(s,'fechaDeriv') + campoTexto(s,'fechaCierre') +
       campoTexto(s,'tramitador') + campoTexto(s,'km') + campoTexto(s,'fechaOfrec') +
@@ -2670,6 +2723,22 @@ function mostrarExportar(){
 /* ============================================================
    AJUSTES
    ============================================================ */
+/** Barra con el lugar ocupado, para que se vea que no se está llenando. */
+function bloqueEspacio(){
+  const u = usoGuardado();
+  const apretado = u.porciento >= 70;
+  return '<div class="bloque"><div class="bloque-tit">Espacio usado</div>' +
+    '<div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:6px">' +
+      '<span><b>' + enTamano(u.bytes) + '</b> de unos 5 MB</span>' +
+      '<span style="color:var(--texto-3)">' + u.porciento + '%</span></div>' +
+    '<div style="height:7px;border-radius:99px;background:var(--superficie-3);overflow:hidden">' +
+      '<div style="height:100%;width:' + Math.max(1.5, u.porciento) + '%;border-radius:99px;background:' +
+      (apretado ? 'var(--aviso)' : 'var(--ok)') + '"></div></div>' +
+    '<p style="font-size:12px;color:var(--texto-3);margin-top:7px">' +
+    ESTADO.siniestros.length + ' siniestros cargados. A tu ritmo (unos 200 por año) alcanza para más de diez años.' +
+    (apretado ? ' <b>Ya estás cerca del tope:</b> bajá un respaldo y borrá los facturados más viejos.' : '') +
+    '</p></div>';
+}
 function mostrarAjustes(){
   const a = ESTADO.ajustes;
   const dups = duplicadosGuardados();
@@ -2696,10 +2765,12 @@ function mostrarAjustes(){
       'Apenas marcás Facturado, el siniestro sale de la lista y queda guardado acá. ' +
       'Si alguno lo marcaste sin querer, entrá, destildá <b>Facturado</b> y vuelve solo. ' +
       'No se borra nunca nada.</p></div>' +
+    bloqueEspacio() +
     '<div class="bloque"><div class="bloque-tit">Cómo funciona</div>' +
       '<div class="aviso-caja info">' + icono('info') + '<div>' +
-      'Los datos quedan guardados <b>en este navegador</b>, en esta computadora. No se suben a ningún lado. ' +
-      'Si cambiás de máquina, usá <b>Exportar → respaldo</b> y después <b>Restaurar</b>.</div></div></div>';
+      'Los datos quedan guardados <b>en este navegador</b>, en esta computadora. No se suben a ningún ' +
+      'lado. Si cambiás de máquina, usá <b>Exportar → respaldo</b> y después <b>Restaurar</b>.' +
+      '</div></div></div>';
   abrirVelo('veloAjustes');
 }
 

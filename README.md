@@ -140,7 +140,28 @@ otro lado. El respaldo incluye las notas y las fechas de revisión, que no van
 en el Excel.
 
 > Conviene bajar un respaldo de vez en cuando. Si alguien limpia los datos de
-> navegación del navegador, se borra todo.
+> navegación del navegador, se borra todo. **Éste es el riesgo real, no el
+> espacio.**
+
+### ¿Cuánto ocupa?
+
+Con 196 siniestros cargados: **101 KB**. El tope del navegador ronda los 5 MB,
+así que se usa un 2 %. En *Configuración → Espacio usado* hay una barra que lo
+muestra.
+
+A un ritmo de unos 200 siniestros por año, la proyección a 10 años (2.000
+siniestros, 15 revisiones cada uno) da **2,27 MB: el 45 % del tope**. Con eso
+alcanza para más de 20 años.
+
+Dos decisiones que lo mantienen chico:
+
+- **No se guardan los campos vacíos.** La planilla tiene columnas que casi no
+  se usan (KM, tramitador, fecha de ofrecimiento); guardarlas vacías era más de
+  la mitad del archivo. Sacarlas achicó todo un 40 %.
+- **El historial no crece sin freno.** Marcar *Lo revisé* varias veces el mismo
+  día actualiza la última anotación en vez de sumar una nueva, y cada siniestro
+  guarda como mucho 40 movimientos. Doscientos clics en un día dejan 2
+  anotaciones, no 201.
 
 ---
 
