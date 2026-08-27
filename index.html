@@ -584,8 +584,8 @@ table.mapeo .muestra{color:var(--texto-3);font-size:12px;overflow:hidden;text-ov
     <select class="control" id="orden" aria-label="Ordenar por">
       <option value="urgencia">Más urgente primero</option>
       <option value="revision">Hace más que no lo veo</option>
-      <option value="vencimiento">Vencimiento más cerca</option>
-      <option value="derivacion">Derivación más vieja</option>
+      <option value="vencimiento">Vencimiento más cerca (sin fecha, al final)</option>
+      <option value="derivacion">Derivación más vieja (sin fecha, al final)</option>
       <option value="reciente">Agregado más reciente</option>
       <option value="numero">Nº de siniestro</option>
     </select>
@@ -2035,14 +2035,25 @@ function cruzar(registros){
 }
 
 /** Aplica la importación. Devuelve el resumen de lo que hizo. */
+// La marca de Facturado no se trae nunca de una planilla: es lo que hace
+// desaparecer un siniestro de la lista, así que se marca a mano acá a medida
+// que se cobra. Informe y Cierre sí se importan: muestran avance, no esconden.
+const CAMPOS_QUE_NO_SE_IMPORTAN = ['facturado'];
+
 function aplicarImportacion(cruce, opciones){
   const ahora = new Date().toISOString();
-  const lote = 'L' + Date.now().toString(36);
+  const base = Date.now();
+  const lote = 'L' + base.toString(36);
   const agregados = [];
 
-  (opciones.nuevosElegidos || cruce.nuevos).forEach(reg => {
-    const s = { id:nuevoId(), lote, creado:ahora, actualizado:ahora, ultimaRevision:null, notas:'', historial:[] };
-    for (const campo in CAMPOS) s[campo] = reg[campo] || '';
+  (opciones.nuevosElegidos || cruce.nuevos).forEach((reg, i) => {
+    // Un `creado` distinto por registro: si todos comparten el mismo instante,
+    // ordenar por "agregado más reciente" queda empatado y no ordena nada.
+    const nacido = new Date(base + i).toISOString();
+    const s = { id:nuevoId(), lote, creado:nacido, actualizado:nacido, ultimaRevision:null, notas:'', historial:[] };
+    for (const campo in CAMPOS){
+      s[campo] = CAMPOS_QUE_NO_SE_IMPORTAN.includes(campo) ? '' : (reg[campo] || '');
+    }
     s.nro = reg.nro;
     anotar(s, 'alta', 'Agregado desde ' + (opciones.nombreArchivo || 'una importación'));
     ESTADO.siniestros.push(s);
@@ -2056,6 +2067,7 @@ function aplicarImportacion(cruce, opciones){
       let cambio = false;
       for (const campo in r.entrante){
         if (campo.charAt(0) === '_' || campo === 'nro') continue;
+        if (CAMPOS_QUE_NO_SE_IMPORTAN.includes(campo)) continue;
         const entra = r.entrante[campo];
         if (!entra) continue;
         const tiene = r.existente[campo] || '';
@@ -2127,14 +2139,15 @@ function avisar(texto, tipo){
 /* ---------- filtros ---------- */
 const FILTROS = {
   activos:    { rotulo:'En curso',      pie:'falta facturar',      prueba:s => !estaTerminado(s) },
-  urgentes:   { rotulo:'Urgentes',      pie:'atención ya',         clase:'critica', prueba:s => s._u.nivel === 'critico' },
+  aseguracleas:{ rotulo:'Aseg. / CLEAS', pie:'en curso',           clase:'buena',   prueba:s => (s.categoria === 'asegurado' || s.categoria === 'cleas') && !estaTerminado(s) },
   terceros:   { rotulo:'Terceros',      pie:'en curso',            clase:'tercera', prueba:s => s.categoria === 'tercero' && !estaTerminado(s) },
   sinver:     { rotulo:'Sin revisar',   pie:'hace mucho',          clase:'avisa',   prueba:s => {
                   if (estaTerminado(s)) return false;
                   const d = s._u.diasSinVer;
                   return d !== null && d > (s.categoria === 'tercero' ? ESTADO.ajustes.diasTercero : ESTADO.ajustes.diasGeneral);
                 } },
-  porfacturar:{ rotulo:'Por facturar',  pie:'informe hecho',       clase:'buena',   prueba:s => esMarca(s.informe) && !esMarca(s.facturado) },
+  porfacturar:{ rotulo:'Por facturar',  pie:'informe hecho',       clase:'avisa',   prueba:s => esMarca(s.informe) && !esMarca(s.facturado) },
+  urgentes:   { rotulo:'Urgentes',      pie:'atención ya',         oculto:true, clase:'critica', prueba:s => s._u.nivel === 'critico' },
   // Los facturados no van en el tablero: se llega a ellos desde Configuración.
   terminados: { rotulo:'Facturados',    pie:'ya cobrados',         oculto:true, prueba:s => estaTerminado(s) },
   todos:      { rotulo:'Todos',         pie:'la lista entera',     oculto:true, prueba:() => true }
@@ -2155,13 +2168,31 @@ function listaVisible(){
   const f = VISTA.busqueda ? FILTROS.todos : (FILTROS[VISTA.filtro] || FILTROS.activos);
   let lista = ESTADO.siniestros.filter(s => f.prueba(s) && coincideBusqueda(s, VISTA.busqueda));
 
+  // Todos los criterios desempatan en cascada. Sin esto, cuando el campo que
+  // ordena está vacío en muchos siniestros (la planilla propia no trae fecha de
+  // vencimiento, por ejemplo) queda todo empatado y sort() deja el orden de
+  // carga: tres criterios distintos terminaban mostrando la misma lista.
+  const porNumero = (a,b) => (Number(a.nro) || 0) - (Number(b.nro) || 0);
+  // Los que no tienen la fecha van al fondo, no mezclados adelante.
+  const porFecha = campo => (a,b) => {
+    const x = a[campo] || '', y = b[campo] || '';
+    if (!x && !y) return porNumero(a,b);
+    if (!x) return 1;
+    if (!y) return -1;
+    return x.localeCompare(y) || porNumero(a,b);
+  };
+
   const ordenadores = {
-    urgencia:   (a,b) => b._u.puntaje - a._u.puntaje || (a.nro > b.nro ? 1 : -1),
-    revision:   (a,b) => (b._u.diasSinVer === null ? 1e6 : b._u.diasSinVer) - (a._u.diasSinVer === null ? 1e6 : a._u.diasSinVer),
-    vencimiento:(a,b) => (a.fechaVenc || '9999').localeCompare(b.fechaVenc || '9999'),
-    derivacion: (a,b) => (a.fechaDeriv || '9999').localeCompare(b.fechaDeriv || '9999'),
-    reciente:   (a,b) => String(b.creado||'').localeCompare(String(a.creado||'')),
-    numero:     (a,b) => (Number(a.nro)||0) - (Number(b.nro)||0)
+    urgencia:   (a,b) => b._u.puntaje - a._u.puntaje || porNumero(a,b),
+    revision:   (a,b) => {
+                  const x = a._u.diasSinVer === null ? Infinity : a._u.diasSinVer;
+                  const y = b._u.diasSinVer === null ? Infinity : b._u.diasSinVer;
+                  return (y - x) || porNumero(a,b);
+                },
+    vencimiento: porFecha('fechaVenc'),
+    derivacion:  porFecha('fechaDeriv'),
+    reciente:   (a,b) => String(b.creado||'').localeCompare(String(a.creado||'')) || porNumero(b,a),
+    numero:     porNumero
   };
   return lista.sort(ordenadores[VISTA.orden] || ordenadores.urgencia);
 }
@@ -2590,6 +2621,7 @@ function mostrarResultado(){
           'Los otros <b>' + c.repetidos.length + '</b> ya los tenías, así que no se duplican.'
         : 'Los <b>' + c.repetidos.length + '</b> siniestros del archivo ya estaban en tu lista. No hay nada nuevo para agregar.') +
       (c.sinNro ? '<br><small>' + c.sinNro + ' fila' + (c.sinNro===1?'':'s') + ' sin número de siniestro que ignoré.</small>' : '') +
+      '<br><small>Las marcas de <b>Facturado</b> no se traen de la planilla: los vas marcando acá a medida que cobrás.</small>' +
       '</div></div>' +
 
     '<div class="pestanas" role="tablist">' +
@@ -2768,34 +2800,75 @@ function armarRespaldo(){
   };
 }
 
+/** Revisa el link antes de intentar nada. Devuelve '' si está bien. */
+function revisarLinkRespaldo(url){
+  const u = String(url || '').trim();
+  if (!u) return 'Falta pegar el link del script de Google.';
+  if (u.indexOf('@') >= 0)
+    return 'Eso es una dirección de mail. Acá va el link del script, el que termina en /exec. ' +
+           'El mail de destino ya está fijado adentro del script.';
+  const esLocal = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?\//i.test(u);
+  if (!/^https:\/\//i.test(u) && !esLocal)
+    return 'El link tiene que empezar con https://';
+  if (!/\/exec\/?$/.test(u))
+    return 'El link tiene que terminar en /exec. Si copiaste el de la barra del navegador, ' +
+           'ése no sirve: buscá el de Implementar → Administrar implementaciones.';
+  return '';
+}
+
 /** Devuelve {ok, confirmado, error}. Nunca lanza. */
 async function enviarRespaldo(){
   const r = ESTADO.ajustes.respaldo;
-  if (!r.url) return { ok:false, error:'Falta la dirección del servicio de envío.' };
+  const problema = revisarLinkRespaldo(r.url);
+  if (problema) return { ok:false, error:problema };
 
   const cuerpo = JSON.stringify(armarRespaldo());
   // text/plain a propósito: así el navegador no manda el pedido de permiso
   // previo, que Apps Script no contesta.
   const opciones = { method:'POST', headers:{ 'Content-Type':'text/plain;charset=utf-8' }, body:cuerpo };
 
+  // Intento 1: normal, es el único que permite leer la respuesta y confirmar.
   let respuesta = null;
   try {
     respuesta = await fetch(r.url, opciones);
   } catch(e){
-    // No llegó a haber respuesta: puede ser el navegador bloqueando la
-    // lectura. Reintentamos a ciegas, sin poder confirmar.
+    // Intento 2: a ciegas, por si el navegador sólo bloqueaba la lectura.
     try {
       await fetch(r.url, { ...opciones, mode:'no-cors' });
       return { ok:true, confirmado:false };
     } catch(e2){
-      return { ok:false, error:'No pude contactar al servicio de envío.' };
+      // Intento 3: sendBeacon, que manda sin esperar respuesta y funciona
+      // incluso con la página abierta como archivo. Tiene un tope de tamaño
+      // (medido: acepta 50 KB, rechaza 60 KB), así que sólo sirve mientras el
+      // respaldo sea chico.
+      const pesa = new Blob([cuerpo]).size;
+      if (pesa <= TOPE_BEACON){
+        try {
+          if (navigator.sendBeacon &&
+              navigator.sendBeacon(r.url, new Blob([cuerpo], { type:'text/plain;charset=UTF-8' })))
+            return { ok:true, confirmado:false };
+        } catch(e3){ /* seguimos al error de abajo */ }
+      }
+      // Nada funcionó: hay que decir exactamente por qué, sin vaguedades.
+      const dondeEstaAbierta = esArchivoLocal()
+        ? 'La página está abierta haciendo doble clic en el archivo, y desde ahí el navegador ' +
+          'bloquea este tipo de envío. '
+        : 'No pude llegar hasta Google: fijate que haya internet y que el link sea el correcto. ';
+      const porElTamano = pesa > TOPE_BEACON
+        ? 'Además, el envío de emergencia tiene un tope de ' + enTamano(TOPE_BEACON) +
+          ' y tu respaldo pesa ' + enTamano(pesa) + ', así que tampoco entra por ahí. '
+        : '';
+      const salida = esArchivoLocal() || pesa > TOPE_BEACON
+        ? 'Subiendo la página a internet (Vercel) esto anda sin límite.'
+        : '';
+      return { ok:false, error: (dondeEstaAbierta + porElTamano + salida).trim() };
     }
   }
 
   try {
     const datos = await respuesta.json();
     if (datos && datos.ok) return { ok:true, confirmado:true };
-    return { ok:false, error:(datos && datos.error) || 'El servicio rechazó el envío.' };
+    return { ok:false, error:'El script contestó: ' + ((datos && datos.error) || 'rechazó el envío') };
   } catch(e){
     // Contestó pero no pude leer la respuesta. No reintento: el mail
     // probablemente salió y no quiero mandar dos.
@@ -2844,6 +2917,7 @@ async function chequearRespaldo(){
 function bloqueRespaldo(){
   const r = ESTADO.ajustes.respaldo;
   const desde = diasDesde(r.ultimoEnvio);
+  const avisoLink = r.url ? revisarLinkRespaldo(r.url) : '';
   const estado = r.ultimoError
     ? '<div class="aviso-caja mal" style="margin-bottom:10px">' + icono('alerta') +
       '<div><b>El último envío falló.</b><br>' + esc(r.ultimoError) + '</div></div>'
@@ -2861,8 +2935,10 @@ function bloqueRespaldo(){
       '<span class="fp-txt" style="color:var(--texto)">Mandar el respaldo por mail cada ' +
       '<b>' + (r.dias || 7) + ' días</b></span></label>' +
     '<div class="campos">' +
-      '<div class="campo ancho"><label>Dirección del servicio de envío (termina en /exec)</label>' +
-        '<input type="url" id="respUrl" placeholder="https://script.google.com/macros/s/…/exec" value="' + esc(r.url) + '"></div>' +
+      '<div class="campo ancho"><label>Link del script de Google (termina en /exec)</label>' +
+        '<input type="url" id="respUrl" placeholder="https://script.google.com/macros/s/…/exec" value="' + esc(r.url) + '">' +
+        (avisoLink ? '<small style="color:var(--peligro);font-size:11.5px">' + esc(avisoLink) + '</small>' : '') +
+        '</div>' +
       '<div class="campo"><label>Clave que pusiste en el script</label>' +
         '<input type="text" id="respClave" value="' + esc(r.clave) + '"></div>' +
       '<div class="campo"><label>Cada cuántos días</label>' +
@@ -2870,6 +2946,13 @@ function bloqueRespaldo(){
     '</div>' +
     '<button class="btn" style="width:100%;margin-top:10px" id="btnProbarRespaldo">' +
       icono('subir') + 'Mandar uno de prueba ahora</button>' +
+    (esArchivoLocal()
+      ? '<div class="aviso-caja ojo" style="margin-top:10px">' + icono('alerta') +
+        '<div><b>Estás abriendo la página con doble clic en el archivo.</b> Desde ahí el respaldo por ' +
+        'mail no es confiable: el navegador bloquea el envío normal, y el de emergencia sólo admite ' +
+        'hasta ' + enTamano(TOPE_BEACON) + ' (tu respaldo pesa ' + enTamano(usoGuardado().bytes) + '). ' +
+        'Subiendo la página a internet (Vercel) funciona sin límite.</div></div>'
+      : '') +
     '<p style="font-size:12px;color:var(--texto-3);margin-top:8px">' +
     'El mail sale hacia <b>walterguerreroseguros@gmail.com</b>, que está fijado en el script. ' +
     'El envío se dispara <b>al abrir la página</b>, no a una hora fija: una página web no puede ' +
@@ -2915,6 +2998,11 @@ function mostrarAjustes(){
     '<div class="bloque"><div class="bloque-tit">Facturados</div>' +
       '<button class="btn" style="width:100%" id="btnVerFacturados">' + icono('carpeta') +
       'Ver los ' + ESTADO.siniestros.filter(estaTerminado).length + ' facturados</button>' +
+      (ESTADO.siniestros.filter(estaTerminado).length
+        ? '<button class="btn btn-peligro" style="width:100%;margin-top:7px" id="btnDesmarcarFacturados">' +
+          icono('refrescar') + 'Empezar de cero: desmarcar los ' +
+          ESTADO.siniestros.filter(estaTerminado).length + '</button>'
+        : '') +
       '<p style="font-size:12px;color:var(--texto-3);margin-top:7px">' +
       'Apenas marcás Facturado, el siniestro sale de la lista y queda guardado acá. ' +
       'Si alguno lo marcaste sin querer, entrá, destildá <b>Facturado</b> y vuelve solo. ' +
@@ -2936,6 +3024,10 @@ function mostrarAjustes(){
    ============================================================ */
 const HAY_VINCULO = typeof window !== 'undefined' && 'showOpenFilePicker' in window &&
                     window.isSecureContext;
+/** La página abierta con doble clic (file://) tiene limitaciones para enviar. */
+const esArchivoLocal = () => typeof location !== 'undefined' && location.protocol === 'file:';
+/** Tope de sendBeacon. Medido en Chrome: acepta 50 KB, rechaza 60 KB. */
+const TOPE_BEACON = 50 * 1024;
 
 function abrirBaseLocal(){
   return new Promise((res, rej) => {
@@ -3246,6 +3338,25 @@ function conectar(){
         : 'Se mandó, pero el navegador no me dejó confirmarlo. Revisá la casilla.', 'bien');
       else avisar('No salió: ' + res.error, 'mal');
       mostrarAjustes();
+      return;
+    }
+    if (t.closest('#btnDesmarcarFacturados')){
+      const cuantos = ESTADO.siniestros.filter(estaTerminado).length;
+      if (!confirm('Voy a sacarle la marca de Facturado a ' + cuantos + ' siniestros, así arrancás de cero.\n\n' +
+                   'No se borra ningún siniestro, ni las notas, ni las fechas de revisión: sólo la marca.\n\n' +
+                   'Van a volver todos a la lista de En curso. ¿Seguimos?')) return;
+      const ahora = new Date().toISOString();
+      let tocados = 0;
+      ESTADO.siniestros.forEach(s => {
+        if (!estaTerminado(s)) return;
+        s.facturado = '';
+        if (/cerrad|finaliz|anulad|rechazad/i.test(String(s.estadoRus || ''))) s.estadoRus = '';
+        s.actualizado = ahora;
+        anotar(s, 'paso', 'Se desmarcó facturado para arrancar de cero');
+        tocados++;
+      });
+      guardar(); mostrarAjustes(); render();
+      avisar('Listo, desmarqué ' + tocados + '. Volvieron todos a la lista.', 'bien');
       return;
     }
     if (t.closest('#btnVerFacturados')){

@@ -50,10 +50,13 @@ Vercel, abrir desde el celular o incluso abrir haciendo doble clic.
 **El tablero de arriba son los filtros.** Tocá cualquiera para filtrar:
 
 - **En curso** — lo que todavía no se facturó. Es lo que se ve al entrar.
-- **Urgentes** — vencidos, por vencer o abandonados hace rato.
+- **Aseg. / CLEAS** — asegurado propio y convenio, en curso.
 - **Terceros** — los que más se escapan.
 - **Sin revisar** — hace más días de los que configuraste.
 - **Por facturar** — informe hecho y falta facturar. Plata en la calle.
+
+Lo urgente no necesita ficha propia: el orden por defecto de las tarjetas ya
+pone adelante lo vencido y lo abandonado.
 
 ### Cuándo desaparece un siniestro
 
@@ -122,8 +125,18 @@ Excel, los espacios, los guiones y los ceros de la izquierda. Así `1736879`,
 `1736879.0` y `01736879` cuentan como el mismo.
 
 Cuando el mismo número ya existe, **nunca lo duplica**: sólo refresca lo que
-manda RUS (vencimiento, estado, prioridad). Tus notas, tus marcas de informe,
-cierre y facturado, y las fechas de revisión **no se pisan nunca**.
+manda RUS (vencimiento, estado, prioridad). Tus notas, tus marcas y las fechas
+de revisión **no se pisan nunca**.
+
+### La marca de Facturado no se importa
+
+`Facturado` es lo que hace desaparecer un siniestro de la lista, así que **nunca
+se trae de una planilla**: se marca a mano acá, a medida que se cobra. `Informe`
+y `Cierre` sí se importan — muestran avance, no esconden nada.
+
+Si quedaron marcas viejas de una importación anterior, en **Configuración →
+Facturados** hay un botón para desmarcarlas todas de una. No borra siniestros,
+ni notas, ni fechas de revisión: sólo la marca.
 
 ---
 
@@ -172,6 +185,12 @@ mail sale de una cuenta de Gmail que ya se tiene.
    misma clave, activá la casilla y tocá **Mandar uno de prueba ahora**.
 
 Si el mail de prueba llega, ya está andando.
+
+**Si la página se abre con doble clic, esto no va a andar.** El navegador bloquea
+el envío desde un archivo local, y el método de emergencia que queda
+(`sendBeacon`) tiene un tope de 50 KB — un respaldo de 200 siniestros pesa el
+doble. La app lo detecta y lo avisa con los números concretos en pantalla. Para
+que el respaldo por mail funcione de verdad hay que **subir la página a Vercel**.
 
 **Dos decisiones de seguridad:**
 
