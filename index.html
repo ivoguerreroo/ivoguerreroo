@@ -678,6 +678,17 @@ table.mapeo .muestra{color:var(--texto-3);font-size:12px;overflow:hidden;text-ov
   </div>
 </div>
 
+<!-- ===== confirmar salida ===== -->
+<div class="velo" id="veloConfirmar" role="alertdialog" aria-modal="true" style="z-index:80">
+  <div class="modal" style="max-width:380px">
+    <div class="m-cuerpo" id="cuerpoConfirmar" style="padding-top:22px"></div>
+    <div class="m-pie">
+      <button class="btn" id="btnQuedarme">Quedarme</button>
+      <button class="btn btn-principal" id="btnSalir">Salir</button>
+    </div>
+  </div>
+</div>
+
 <!-- ===== detalle ===== -->
 <div class="panel-velo" id="veloPanel"></div>
 <aside class="panel" id="panel" role="dialog" aria-modal="true" aria-label="Detalle del siniestro">
@@ -2449,6 +2460,29 @@ let cruceActual = null, reconocidoActual = null, filasActuales = null, nombreAct
 function abrirVelo(id){ $('#'+id).classList.add('abierto'); }
 function cerrarVelo(id){ $('#'+id).classList.remove('abierto'); }
 
+/** Modales donde cerrar sin querer cuesta algo: antes de cerrarlos por
+ *  accidente (click afuera, Escape) se confirma con un cartel propio. */
+const MODALES_PROTEGIDOS = { veloAjustes: true };
+
+let _alConfirmarSalir = null;
+function confirmarSalida(mensaje, alSalir){
+  $('#cuerpoConfirmar').innerHTML = mensaje;
+  _alConfirmarSalir = alSalir;
+  abrirVelo('veloConfirmar');
+}
+function pedirCierre(id){
+  if (MODALES_PROTEGIDOS[id] && $('#'+id).classList.contains('abierto')){
+    confirmarSalida(
+      '<b>¿Salir de Configuración?</b><br><br>' +
+      'Lo que ya tocaste (una casilla, un número) quedó guardado solo. ' +
+      'Pero si estabas completando algo y no lo terminaste, se pierde.',
+      () => cerrarVelo(id)
+    );
+  } else {
+    cerrarVelo(id);
+  }
+}
+
 function abrirImportador(){
   $('#pasoElegir').classList.remove('oculto');
   $('#pasoResultado').classList.add('oculto');
@@ -3146,16 +3180,34 @@ function conectar(){
   $('#panelCuerpo').addEventListener('change', e => {
     if (e.target.dataset && e.target.dataset.campo) guardarCampo(e.target.dataset.campo, e.target.value);
   });
-  $('#veloPanel').onclick = cerrarPanel;
+  // Si arrastrás el mouse para seleccionar texto adentro de un cuadro y soltás
+  // afuera del borde, el navegador dispara igual un "click" sobre el fondo.
+  // Para no cerrar por eso, sólo cuenta como "click afuera" cuando el click
+  // EMPEZÓ (mousedown) también sobre el fondo, no cuando sólo terminó ahí.
+  let _dondeEmpezoElClick = null;
+  document.addEventListener('mousedown', e => { _dondeEmpezoElClick = e.target; });
+
+  $('#veloPanel').addEventListener('click', e => {
+    if (_dondeEmpezoElClick === e.target) cerrarPanel();
+  });
 
   /* --- clics generales --- */
   document.addEventListener('click', async e => {
     const t = e.target;
 
+    // La X y los botones "Listo"/"Cancelar" son un cierre a propósito: van
+    // directo, sin preguntar. La confirmación es sólo para lo accidental
+    // (click en el fondo, Escape), un poco más abajo.
     const cerrar = t.closest('[data-cerrar]');
     if (cerrar) return cerrarVelo(cerrar.dataset.cerrar);
-    if (t.classList && t.classList.contains('velo')) return t.classList.remove('abierto');
+    if (t.classList && t.classList.contains('velo')){
+      if (_dondeEmpezoElClick !== t) return;      // arrastre que terminó afuera: no cuenta
+      return pedirCierre(t.id);
+    }
     if (t.closest('#cerrarPanel')) return cerrarPanel();
+
+    if (t.closest('#btnSalir'))    { cerrarVelo('veloConfirmar'); if (_alConfirmarSalir) _alConfirmarSalir(); return; }
+    if (t.closest('#btnQuedarme')) { cerrarVelo('veloConfirmar'); return; }
 
     const filtro = t.closest('[data-filtro]');
     if (filtro){ VISTA.filtro = filtro.dataset.filtro; render(); return; }
@@ -3253,7 +3305,8 @@ function conectar(){
 
   document.addEventListener('keydown', e => {
     if (e.key === 'Escape'){
-      $$('.velo.abierto').forEach(v => v.classList.remove('abierto'));
+      if ($('#veloConfirmar').classList.contains('abierto')){ cerrarVelo('veloConfirmar'); return; }
+      $$('.velo.abierto').forEach(v => pedirCierre(v.id));
       cerrarPanel();
     }
     if (e.key === '/' && document.activeElement.tagName !== 'INPUT' && document.activeElement.tagName !== 'TEXTAREA'){
