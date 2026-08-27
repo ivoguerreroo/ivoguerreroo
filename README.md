@@ -82,9 +82,19 @@ Buscar por número **encuentra todo**, esté terminado o no: el buscador ignora
 el filtro. Y el chip **Ver todos**, al lado del buscador, muestra la lista
 entera.
 
-**Cada tarjeta** trae el número de siniestro (con botón para copiarlo), el
-vehículo, el contador de días sin revisar, y los tres pasos —**Informe →
-Cierre → Facturado**— que se marcan tocándolos.
+**Cada tarjeta** muestra lo mínimo para decidir sin cansar la vista: número de
+siniestro (con botón para copiarlo), vehículo, si es de tercero o de asegurado,
+los tres pasos —**Informe → Cierre → Facturado**— que se marcan tocándolos, y
+una línea con las fechas. El vencimiento se lee solo: dice *Venció el* en rojo o
+*Vence el* según corresponda, sin cartelitos aparte.
+
+Arriba a la derecha, una pastilla dice hace cuánto que no se mira: gris cuando
+está al día, ámbar cuando pasó el plazo configurado.
+
+Si el siniestro tiene un celular cargado, aparece un **botón de WhatsApp** que
+abre el chat con esa persona — en la tarjeta y en el detalle. Los teléfonos fijos
+y los mails que a veces quedan en esa columna no generan botón, porque WhatsApp
+no funcionaría.
 
 **Abriendo el detalle** están todos los datos en un solo bloque y **todos se
 pueden editar**, incluso los que llegaron de RUS: si algo vino mal, se corrige a

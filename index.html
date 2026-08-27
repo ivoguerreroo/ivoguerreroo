@@ -188,7 +188,7 @@ select.control:focus{outline:none;border-color:var(--acento)}
 .grupo-vista svg{width:16px;height:16px}
 
 /* ---------- rejilla de tarjetas ---------- */
-.rejilla{display:grid;gap:12px;grid-template-columns:repeat(auto-fill,minmax(330px,1fr))}
+.rejilla{display:grid;gap:12px;align-items:start;grid-template-columns:repeat(auto-fill,minmax(330px,1fr))}
 .tarjeta{
   position:relative;background:var(--superficie);border:1px solid var(--borde);
   border-radius:var(--radio);box-shadow:var(--sombra);overflow:hidden;
@@ -205,19 +205,24 @@ select.control:focus{outline:none;border-color:var(--acento)}
 .tarjeta.n-listo:hover{opacity:1}
 
 .t-cabecera{display:flex;gap:12px;padding:14px 15px 11px 18px;align-items:flex-start}
-.reloj{
-  flex:none;width:60px;border-radius:11px;padding:7px 4px;text-align:center;
-  background:var(--superficie-2);border:1px solid var(--borde);
+.visto{
+  flex:none;align-self:flex-start;font-size:11.5px;font-weight:600;
+  padding:3px 9px;border-radius:99px;white-space:nowrap;
+  background:var(--superficie-2);color:var(--texto-3);border:1px solid var(--borde);
 }
-.reloj b{display:block;font-size:21px;font-weight:800;line-height:1.05;font-variant-numeric:tabular-nums;letter-spacing:-.03em}
-.reloj span{display:block;font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--texto-3);margin-top:1px}
-.n-critico .reloj{background:var(--peligro-suave);border-color:color-mix(in srgb,var(--peligro) 28%,transparent)}
-.n-critico .reloj b{color:var(--peligro)}
-.n-atencion .reloj{background:var(--aviso-suave);border-color:color-mix(in srgb,var(--aviso) 28%,transparent)}
-.n-atencion .reloj b{color:var(--aviso)}
-.n-bien .reloj{background:var(--ok-suave);border-color:color-mix(in srgb,var(--ok) 25%,transparent)}
-.n-bien .reloj b{color:var(--ok)}
-.n-listo .reloj b{color:var(--texto-3)}
+.visto.reciente{background:var(--ok-suave);color:var(--ok);border-color:transparent}
+.visto.tarde{background:var(--aviso-suave);color:var(--aviso);border-color:transparent}
+
+.t-fechas{
+  display:flex;flex-wrap:wrap;align-items:center;gap:7px;
+  padding:0 15px 12px 18px;font-size:12.5px;color:var(--texto-2);
+}
+.t-fechas i{color:var(--texto-3);font-style:normal}
+.t-fechas .pasado{color:var(--peligro);font-weight:600}
+
+.btn-wa{flex:0 0 auto !important;padding:6px 11px;color:#25D366}
+.btn-wa:hover{background:color-mix(in srgb,#25D366 14%,transparent);border-color:#25D366}
+.btn-wa svg{width:17px;height:17px}
 
 .t-id{min-width:0;flex:1}
 .t-nro{
@@ -267,7 +272,6 @@ select.control:focus{outline:none;border-color:var(--acento)}
 .paso b{font-size:10px;font-weight:700;color:var(--texto-3);text-transform:uppercase;letter-spacing:.04em}
 .paso.hecho b{color:var(--ok)}
 
-.reloj b.chico{font-size:13px;padding:3px 0}
 .t-datos{padding:0 15px 12px 18px;display:flex;flex-direction:column;gap:5px;font-size:12.5px;color:var(--texto-2)}
 .t-dato{display:flex;align-items:center;gap:7px;min-width:0}
 .t-dato svg{width:13px;height:13px;flex:none;color:var(--texto-3)}
@@ -525,6 +529,7 @@ table.mapeo .muestra{color:var(--texto-3);font-size:12px;overflow:hidden;text-ov
 <g id="i-ok" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="m20 6-11 11-5-5"/></g>
 <g id="i-reloj" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></g>
 <g id="i-auto" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 17h14M6.5 17V9.5L8 6h8l1.5 3.5V17"/><circle cx="8" cy="17" r="1.6"/><circle cx="16" cy="17" r="1.6"/><path d="M6.5 11h11"/></g>
+<g id="i-wa" fill="currentColor"><path d="M12.04 2C6.58 2 2.13 6.45 2.13 11.91c0 1.75.46 3.46 1.32 4.96L2 22l5.25-1.38a9.9 9.9 0 0 0 4.79 1.22h.01c5.46 0 9.9-4.45 9.9-9.91C21.95 6.45 17.5 2 12.04 2Zm0 18.15h-.01a8.2 8.2 0 0 1-4.19-1.15l-.3-.18-3.12.82.83-3.04-.2-.31a8.19 8.19 0 0 1-1.26-4.38c0-4.54 3.7-8.23 8.25-8.23a8.2 8.2 0 0 1 8.24 8.24c0 4.54-3.7 8.23-8.24 8.23Zm4.52-6.16c-.25-.12-1.47-.72-1.69-.81-.23-.08-.39-.12-.56.13-.16.25-.64.81-.79.98-.14.16-.29.19-.54.06-.25-.12-1.05-.39-1.99-1.23-.74-.66-1.24-1.47-1.38-1.72-.15-.25-.02-.38.11-.51.11-.11.25-.29.37-.44.13-.15.17-.25.25-.42.09-.16.04-.31-.02-.43-.06-.13-.56-1.35-.77-1.84-.2-.49-.4-.42-.56-.43h-.47c-.16 0-.43.06-.65.31-.23.25-.86.84-.86 2.05s.88 2.38 1 2.54c.13.17 1.74 2.65 4.2 3.72.59.25 1.05.4 1.4.52.59.18 1.13.16 1.55.1.47-.07 1.47-.6 1.67-1.18.21-.58.21-1.07.15-1.18-.06-.11-.23-.17-.48-.29Z"/></g>
 <g id="i-tel" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1 1 .4 1.9.7 2.8a2 2 0 0 1-.4 2.1L8.1 9.9a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.5c.9.4 1.8.6 2.8.7a2 2 0 0 1 1.7 2Z"/></g>
 <g id="i-calendario" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></g>
 <g id="i-alerta" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/><path d="M12 9v4M12 17h.01"/></g>
@@ -1795,6 +1800,24 @@ function limpiarPersona(v){
 }
 const tramitadorDe = reg => limpiarPersona(reg.emisor) || limpiarPersona(reg.duenio);
 
+/** Arma el numero para WhatsApp. Los telefonos vienen como "3434616566"
+ *  (codigo de area + numero, sin el pais). WhatsApp los quiere completos:
+ *  54 de Argentina + 9 de celular + area + numero. */
+function aWhatsapp(tel){
+  let d = String(tel == null ? '' : tel).replace(/[^\d]/g, '');
+  if (!d) return '';
+  if (/^549/.test(d)) { /* ya viene completo */ }
+  else if (/^54/.test(d)) d = '549' + d.slice(2);
+  else {
+    d = d.replace(/^0+/, '');                       // 0343... -> 343...
+    d = d.replace(/^(\d{2,4})15(\d{6,8})$/, '$1$2'); // el 15 viejo de los celulares
+    if (d.length < 8 || d.length > 12) return '';
+    d = '549' + d;
+  }
+  return d.length >= 11 && d.length <= 15 ? d : '';
+}
+const enlaceWhatsapp = tel => { const n = aWhatsapp(tel); return n ? 'https://wa.me/' + n : ''; };
+
 /* ---------- marcas X ---------- */
 /** Un siniestro está terminado cuando ya se facturó: ése es el final del
  *  circuito. El cierre solo no alcanza — si está cerrado pero sin facturar,
@@ -2220,12 +2243,14 @@ function pintarTablero(){
 }
 
 /* ---------- piezas reutilizables ---------- */
-function etiquetasDe(s){
+/** compacto = solo lo esencial. Las tarjetas lo usan asi para no saturar. */
+function etiquetasDe(s, compacto){
   const et = [];
   if (s.categoria === 'tercero') et.push('<span class="marca-tipo es-tercero">Tercero</span>');
   else if (s.categoria === 'cleas') et.push('<span class="marca-tipo es-cleas">CLEAS</span>');
   else if (s.categoria === 'asegurado') et.push('<span class="marca-tipo">Asegurado</span>');
   if (s._u.nivel === 'listo') et.push('<span class="marca-tipo es-ok">Terminado</span>');
+  if (compacto) return et.join('');
   const venc = s.fechaVenc ? diasEntre(hoyISO(), s.fechaVenc) : null;
   if (venc !== null && s._u.nivel !== 'listo'){
     if (venc < 0) et.push('<span class="marca-tipo es-alerta">Venció hace ' + (-venc) + 'd</span>');
@@ -2238,12 +2263,19 @@ function etiquetasDe(s){
   return et.join('');
 }
 
+/** Pastilla chica con lo unico que importa: hace cuanto que no lo miro. */
 function relojDe(s){
   const d = s._u.diasSinVer;
-  const pie = s._u.nuncaRevisado ? 'sin ver' : 'revisado';
-  if (d === null) return '<b class="chico">—</b><span>' + pie + '</span>';
-  if (d === 0)    return '<b class="chico">hoy</b><span>' + pie + '</span>';
-  return '<b>' + d + '</b><span>día' + (d===1?'':'s') + '</span>';
+  const umbral = s.categoria === 'tercero' ? ESTADO.ajustes.diasTercero : ESTADO.ajustes.diasGeneral;
+  let texto, clase = '';
+  if (d === null || d === 0){
+    texto = s._u.nuncaRevisado ? 'sin ver' : 'visto hoy';
+    if (!s._u.nuncaRevisado) clase = 'reciente';
+  } else {
+    texto = 'hace ' + d + ' día' + (d === 1 ? '' : 's');
+    if (d > umbral) clase = 'tarde';
+  }
+  return '<span class="visto ' + clase + '">' + texto + '</span>';
 }
 
 function pasosDe(s){
@@ -2269,29 +2301,36 @@ function subtituloDe(s){
 /* ---------- tarjetas ---------- */
 function pintarTarjetas(lista){
   return '<div class="rejilla">' + lista.map(s => {
-    const sub = subtituloDe(s);
-    const datos = [];
-    if (s.fechaVenc)  datos.push({ i:'calendario', t:'Vence el ' + formatearFecha(s.fechaVenc), c: s._u.nivel==='critico' ? 'urge' : '' });
-    if (s.fechaDeriv) datos.push({ i:'reloj', t:'Derivado el ' + formatearFecha(s.fechaDeriv) });
-    if (s.telefono)   datos.push({ i:'tel', t:s.telefono });
-    if (s.tarea)      datos.push({ i:'carpeta', t:s.tarea });
+    // Una sola linea de fechas, y el vencimiento se lee solo: "Venció el" o
+    // "Vence el" segun corresponda, sin necesidad de un cartelito aparte.
+    const fechas = [];
+    if (s.fechaVenc){
+      const faltan = diasEntre(hoyISO(), s.fechaVenc);
+      const vencido = faltan !== null && faltan < 0 && s._u.nivel !== 'listo';
+      fechas.push('<span class="' + (vencido ? 'pasado' : '') + '">' +
+        (vencido ? 'Venció el ' : 'Vence el ') + formatearFecha(s.fechaVenc) + '</span>');
+    }
+    if (s.fechaDeriv) fechas.push('<span>Derivado el ' + formatearFecha(s.fechaDeriv) + '</span>');
+    const wa = enlaceWhatsapp(s.telefono);
+
     return '<article class="tarjeta n-' + s._u.nivel + '" data-id="' + s.id + '" tabindex="0">' +
       '<div class="t-cabecera">' +
-        '<div class="reloj">' + relojDe(s) + '</div>' +
         '<div class="t-id">' +
           '<div class="t-nro">' + esc(s.nro || '—') +
             '<button data-copiar="' + esc(s.nro) + '" title="Copiar número">' + icono('copiar') + '</button></div>' +
-          '<div class="t-sub">' + esc(sub) + '</div>' +
-          '<div class="t-etiquetas">' + etiquetasDe(s) + '</div>' +
+          '<div class="t-sub">' + esc(subtituloDe(s)) + '</div>' +
+          '<div class="t-etiquetas">' + etiquetasDe(s, true) + '</div>' +
         '</div>' +
+        relojDe(s) +
       '</div>' +
       pasosDe(s) +
-      (datos.length ? '<div class="t-datos">' + datos.slice(0,3).map(d =>
-        '<div class="t-dato ' + (d.c||'') + '">' + icono(d.i) + '<span>' + esc(d.t) + '</span></div>').join('') + '</div>' : '') +
+      (fechas.length ? '<div class="t-fechas">' + fechas.join('<i>·</i>') + '</div>' : '') +
       (s.notas ? '<div class="t-nota"><b>Pendiente:</b> ' + esc(s.notas) + '</div>'
                : (s.observaciones ? '<div class="t-nota">' + esc(s.observaciones) + '</div>' : '')) +
       '<div class="t-pie">' +
         '<button class="btn btn-chico" data-revisar="' + s.id + '">' + icono('ok') + 'Lo revisé</button>' +
+        (wa ? '<a class="btn btn-chico btn-wa" href="' + wa + '" target="_blank" rel="noopener" ' +
+              'title="Escribir por WhatsApp al ' + esc(s.telefono) + '" data-wa>' + icono('wa') + '</a>' : '') +
         '<button class="btn btn-chico" data-abrir="' + s.id + '">Abrir' + icono('flecha') + '</button>' +
       '</div></article>';
   }).join('') + '</div>';
@@ -2408,6 +2447,17 @@ function campoSelect(s, campo, opciones, rotulos){
     '</select></div>';
 }
 
+/** El telefono, con un boton al lado para escribir por WhatsApp. */
+function campoTelefono(s){
+  const wa = enlaceWhatsapp(s.telefono);
+  return '<div class="campo"><label>' + esc(CAMPOS.telefono.rotulo) + '</label>' +
+    '<div style="display:flex;gap:6px">' +
+      '<input type="text" data-campo="telefono" value="' + esc(s.telefono || '') + '" style="flex:1;min-width:0">' +
+      (wa ? '<a class="btn btn-wa" href="' + wa + '" target="_blank" rel="noopener" ' +
+            'title="Escribir por WhatsApp">' + icono('wa') + '</a>' : '') +
+    '</div></div>';
+}
+
 function campoTexto(s, campo, tipo){
   const c = CAMPOS[campo];
   const valor = s[campo] || '';
@@ -2454,7 +2504,7 @@ function abrirDetalle(id){
     '<div class="bloque"><div class="bloque-tit">Datos del siniestro</div><div class="campos">' +
       campoTexto(s,'dominio') + campoTexto(s,'vehiculo') +
       campoSelect(s,'categoria', ['','tercero','cleas','asegurado','otro'], ROTULO_CATEGORIA) +
-      campoTexto(s,'telefono') +
+      campoTelefono(s) +
       campoTexto(s,'tramitador') +
       campoSelect(s,'prioridad', ['','Alta','Media','Baja']) +
       campoTexto(s,'fechaAsign') + campoTexto(s,'fechaSin') +
@@ -3276,6 +3326,10 @@ function conectar(){
 
     const filtro = t.closest('[data-filtro]');
     if (filtro){ VISTA.filtro = filtro.dataset.filtro; render(); return; }
+
+    // El boton de WhatsApp es un link: que haga lo suyo y nada mas. Sin esto,
+    // el clic seguia de largo y abria tambien el detalle por detras.
+    if (t.closest('[data-wa]')) return;
 
     const copiar = t.closest('[data-copiar]');
     if (copiar){
