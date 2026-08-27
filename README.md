@@ -128,15 +128,16 @@ Cuando el mismo número ya existe, **nunca lo duplica**: sólo refresca lo que
 manda RUS (vencimiento, estado, prioridad). Tus notas, tus marcas y las fechas
 de revisión **no se pisan nunca**.
 
-### La marca de Facturado no se importa
+### Las marcas de la planilla sí se importan
 
-`Facturado` es lo que hace desaparecer un siniestro de la lista, así que **nunca
-se trae de una planilla**: se marca a mano acá, a medida que se cobra. `Informe`
-y `Cierre` sí se importan — muestran avance, no esconden nada.
+`INFORME`, `CIERRE` y `FACTURADO` se traen tal cual vienen del Excel. Eso es lo
+que hace que al importar los 189 siniestros históricos queden a la vista sólo
+los **38 que están abiertos**: los ~150 ya cobrados entran directo a Facturados
+y no molestan.
 
-Si quedaron marcas viejas de una importación anterior, en **Configuración →
-Facturados** hay un botón para desmarcarlas todas de una. No borra siniestros,
-ni notas, ni fechas de revisión: sólo la marca.
+Si alguna vez hace falta empezar de cero, en **Configuración → Facturados** hay
+un botón para desmarcarlos todos de una. No borra siniestros, ni notas, ni
+fechas de revisión: sólo la marca.
 
 ---
 

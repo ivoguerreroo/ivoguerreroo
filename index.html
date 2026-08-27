@@ -2035,11 +2035,6 @@ function cruzar(registros){
 }
 
 /** Aplica la importación. Devuelve el resumen de lo que hizo. */
-// La marca de Facturado no se trae nunca de una planilla: es lo que hace
-// desaparecer un siniestro de la lista, así que se marca a mano acá a medida
-// que se cobra. Informe y Cierre sí se importan: muestran avance, no esconden.
-const CAMPOS_QUE_NO_SE_IMPORTAN = ['facturado'];
-
 function aplicarImportacion(cruce, opciones){
   const ahora = new Date().toISOString();
   const base = Date.now();
@@ -2051,9 +2046,7 @@ function aplicarImportacion(cruce, opciones){
     // ordenar por "agregado más reciente" queda empatado y no ordena nada.
     const nacido = new Date(base + i).toISOString();
     const s = { id:nuevoId(), lote, creado:nacido, actualizado:nacido, ultimaRevision:null, notas:'', historial:[] };
-    for (const campo in CAMPOS){
-      s[campo] = CAMPOS_QUE_NO_SE_IMPORTAN.includes(campo) ? '' : (reg[campo] || '');
-    }
+    for (const campo in CAMPOS) s[campo] = reg[campo] || '';
     s.nro = reg.nro;
     anotar(s, 'alta', 'Agregado desde ' + (opciones.nombreArchivo || 'una importación'));
     ESTADO.siniestros.push(s);
@@ -2067,7 +2060,6 @@ function aplicarImportacion(cruce, opciones){
       let cambio = false;
       for (const campo in r.entrante){
         if (campo.charAt(0) === '_' || campo === 'nro') continue;
-        if (CAMPOS_QUE_NO_SE_IMPORTAN.includes(campo)) continue;
         const entra = r.entrante[campo];
         if (!entra) continue;
         const tiene = r.existente[campo] || '';
@@ -2621,7 +2613,6 @@ function mostrarResultado(){
           'Los otros <b>' + c.repetidos.length + '</b> ya los tenías, así que no se duplican.'
         : 'Los <b>' + c.repetidos.length + '</b> siniestros del archivo ya estaban en tu lista. No hay nada nuevo para agregar.') +
       (c.sinNro ? '<br><small>' + c.sinNro + ' fila' + (c.sinNro===1?'':'s') + ' sin número de siniestro que ignoré.</small>' : '') +
-      '<br><small>Las marcas de <b>Facturado</b> no se traen de la planilla: los vas marcando acá a medida que cobrás.</small>' +
       '</div></div>' +
 
     '<div class="pestanas" role="tablist">' +
