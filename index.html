@@ -1,0 +1,3023 @@
+<!doctype html>
+<html lang="es-AR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="Seguimiento de siniestros de Río Uruguay Seguros: importá la planilla, detectá repetidos y no pierdas de vista ningún tercero.">
+<meta name="theme-color" content="#1e3a5f">
+<title>Radar de Siniestros</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<style>
+/* ==========================================================
+   Paleta — clara por defecto, oscura según el sistema
+   ========================================================== */
+:root{
+  --fondo:#eef1f6; --lienzo:#f7f9fc;
+  --superficie:#ffffff; --superficie-2:#f4f7fb; --superficie-3:#e9eef6;
+  --borde:#dde4ee; --borde-fuerte:#c3cede;
+  --texto:#101828; --texto-2:#5a6b85; --texto-3:#8a99b0;
+  --acento:#1e5eb8; --acento-suave:#e4edfb; --acento-texto:#ffffff;
+  --ok:#0f7a4d; --ok-suave:#dcf5e9;
+  --aviso:#a35a00; --aviso-suave:#fdeed6;
+  --peligro:#b4232a; --peligro-suave:#fde3e4;
+  --tercero:#6d28a8; --tercero-suave:#f0e4fb;
+  --cleas:#0b6a86; --cleas-suave:#d9f0f7;
+  --sombra:0 1px 2px rgba(16,24,40,.05), 0 4px 14px -6px rgba(16,24,40,.14);
+  --sombra-alta:0 10px 40px -8px rgba(16,24,40,.30);
+  --radio:14px; --radio-chico:9px;
+  --ancho:1240px;
+  --mono:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  --sans:"Inter",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --fondo:#0b0f16; --lienzo:#0e131c;
+    --superficie:#151c27; --superficie-2:#1b2432; --superficie-3:#222d3d;
+    --borde:#26303f; --borde-fuerte:#374558;
+    --texto:#e8eef7; --texto-2:#9fb0c6; --texto-3:#71829a;
+    --acento:#5c9dff; --acento-suave:#16304f; --acento-texto:#08111d;
+    --ok:#45d391; --ok-suave:#10322a;
+    --aviso:#f2b43c; --aviso-suave:#3a2a10;
+    --peligro:#ff7a80; --peligro-suave:#3d1a1d;
+    --tercero:#c79bf5; --tercero-suave:#2c1c40;
+    --cleas:#5cc8e8; --cleas-suave:#0e2f3b;
+    --sombra:0 1px 2px rgba(0,0,0,.4), 0 4px 14px -6px rgba(0,0,0,.5);
+    --sombra-alta:0 10px 40px -8px rgba(0,0,0,.7);
+  }
+}
+:root[data-theme="dark"]{
+  --fondo:#0b0f16; --lienzo:#0e131c;
+  --superficie:#151c27; --superficie-2:#1b2432; --superficie-3:#222d3d;
+  --borde:#26303f; --borde-fuerte:#374558;
+  --texto:#e8eef7; --texto-2:#9fb0c6; --texto-3:#71829a;
+  --acento:#5c9dff; --acento-suave:#16304f; --acento-texto:#08111d;
+  --ok:#45d391; --ok-suave:#10322a;
+  --aviso:#f2b43c; --aviso-suave:#3a2a10;
+  --peligro:#ff7a80; --peligro-suave:#3d1a1d;
+  --tercero:#c79bf5; --tercero-suave:#2c1c40;
+  --cleas:#5cc8e8; --cleas-suave:#0e2f3b;
+  --sombra:0 1px 2px rgba(0,0,0,.4), 0 4px 14px -6px rgba(0,0,0,.5);
+  --sombra-alta:0 10px 40px -8px rgba(0,0,0,.7);
+}
+
+*,*::before,*::after{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{
+  margin:0; background:var(--fondo); color:var(--texto);
+  font-family:var(--sans); font-size:15px; line-height:1.5;
+  -webkit-font-smoothing:antialiased;
+}
+h1,h2,h3,p,figure{margin:0}
+button,input,select,textarea{font:inherit;color:inherit}
+a{color:var(--acento)}
+::selection{background:var(--acento-suave);color:var(--texto)}
+.oculto{display:none !important}
+.solo-lectores{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+
+/* ---------- barra superior ---------- */
+.barra{
+  position:sticky; top:0; z-index:40;
+  background:color-mix(in srgb, var(--superficie) 88%, transparent);
+  backdrop-filter:blur(12px); -webkit-backdrop-filter:blur(12px);
+  border-bottom:1px solid var(--borde);
+}
+.barra-int{
+  max-width:var(--ancho); margin:0 auto; padding:12px 20px;
+  display:flex; align-items:center; gap:14px; flex-wrap:wrap;
+}
+.marca{display:flex;align-items:center;gap:11px;margin-right:auto;min-width:0}
+.marca-icono{
+  width:38px;height:38px;border-radius:11px;flex:none;
+  background:linear-gradient(145deg,var(--acento),color-mix(in srgb,var(--acento) 55%, #6d28a8));
+  display:grid;place-items:center;color:#fff;box-shadow:var(--sombra);
+}
+.marca-icono svg{width:21px;height:21px}
+.marca-txt{min-width:0}
+.marca-txt h1{font-size:16.5px;font-weight:800;letter-spacing:-.025em;white-space:nowrap}
+.marca-txt p{font-size:11.5px;color:var(--texto-3);font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+/* ---------- botones ---------- */
+.btn{
+  display:inline-flex;align-items:center;justify-content:center;gap:7px;
+  padding:9px 14px;border-radius:10px;border:1px solid var(--borde-fuerte);
+  background:var(--superficie);color:var(--texto);
+  font-size:13.5px;font-weight:600;cursor:pointer;white-space:nowrap;
+  transition:background .14s,border-color .14s,transform .08s,box-shadow .14s;
+}
+.btn:hover{background:var(--superficie-2);border-color:var(--texto-3)}
+.btn:active{transform:translateY(1px)}
+.btn:focus-visible{outline:2px solid var(--acento);outline-offset:2px}
+.btn svg{width:16px;height:16px;flex:none}
+.btn-principal{background:var(--acento);border-color:var(--acento);color:var(--acento-texto);box-shadow:var(--sombra)}
+.btn-principal:hover{background:color-mix(in srgb,var(--acento) 86%, #000);border-color:transparent}
+.btn-fantasma{background:transparent;border-color:transparent;color:var(--texto-2)}
+.btn-fantasma:hover{background:var(--superficie-2);color:var(--texto)}
+.btn-chico{padding:6px 10px;font-size:12.5px;border-radius:8px}
+.btn-icono{padding:8px;width:36px;height:36px}
+.btn-icono svg{width:17px;height:17px}
+.btn-peligro{color:var(--peligro);border-color:color-mix(in srgb,var(--peligro) 35%, var(--borde))}
+.btn-peligro:hover{background:var(--peligro-suave)}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+
+/* ---------- contenedor ---------- */
+.envoltorio{max-width:var(--ancho);margin:0 auto;padding:20px}
+
+/* ---------- tablero de números ---------- */
+.tablero{
+  display:grid;gap:10px;margin-bottom:18px;
+  grid-template-columns:repeat(auto-fit,minmax(158px,1fr));
+}
+.ficha{
+  background:var(--superficie);border:1px solid var(--borde);border-radius:var(--radio);
+  padding:13px 15px;box-shadow:var(--sombra);cursor:pointer;text-align:left;
+  transition:border-color .14s,transform .1s;position:relative;overflow:hidden;
+}
+.ficha:hover{border-color:var(--borde-fuerte);transform:translateY(-1px)}
+.ficha[aria-pressed="true"]{border-color:var(--acento);box-shadow:0 0 0 1px var(--acento),var(--sombra)}
+.ficha-num{font-size:27px;font-weight:800;letter-spacing:-.03em;font-variant-numeric:tabular-nums;line-height:1.1}
+.ficha-rot{font-size:11.5px;font-weight:600;color:var(--texto-2);margin-top:3px;text-transform:uppercase;letter-spacing:.05em}
+.ficha-pie{font-size:11px;color:var(--texto-3);margin-top:2px}
+.ficha.critica .ficha-num{color:var(--peligro)}
+.ficha.avisa .ficha-num{color:var(--aviso)}
+.ficha.buena .ficha-num{color:var(--ok)}
+.ficha.tercera .ficha-num{color:var(--tercero)}
+
+/* ---------- herramientas ---------- */
+.herramientas{
+  display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:16px;
+  background:var(--superficie);border:1px solid var(--borde);border-radius:var(--radio);
+  padding:11px 13px;box-shadow:var(--sombra);
+  position:sticky;top:63px;z-index:30;
+}
+.buscador{position:relative;flex:1 1 240px;min-width:180px}
+.buscador svg{position:absolute;left:11px;top:50%;transform:translateY(-50%);width:16px;height:16px;color:var(--texto-3);pointer-events:none}
+.buscador input{
+  width:100%;padding:9px 34px 9px 34px;border-radius:10px;
+  border:1px solid var(--borde-fuerte);background:var(--superficie-2);
+  font-size:14px;
+}
+.buscador input:focus{outline:none;border-color:var(--acento);background:var(--superficie);box-shadow:0 0 0 3px var(--acento-suave)}
+.buscador .limpiar{position:absolute;right:5px;top:50%;transform:translateY(-50%);border:0;background:transparent;cursor:pointer;color:var(--texto-3);padding:5px;border-radius:6px;line-height:0}
+.buscador .limpiar:hover{background:var(--superficie-3);color:var(--texto)}
+.filtros{display:flex;gap:6px;flex-wrap:wrap}
+.chip{
+  padding:7px 12px;border-radius:99px;border:1px solid var(--borde-fuerte);
+  background:var(--superficie);font-size:12.5px;font-weight:600;cursor:pointer;
+  display:inline-flex;align-items:center;gap:6px;transition:all .13s;color:var(--texto-2);
+}
+.chip:hover{border-color:var(--texto-3);color:var(--texto)}
+.chip[aria-pressed="true"]{background:var(--acento);border-color:var(--acento);color:var(--acento-texto)}
+.chip .cuenta{
+  font-size:11px;padding:1px 6px;border-radius:99px;background:var(--superficie-3);
+  color:var(--texto-2);font-variant-numeric:tabular-nums;
+}
+.chip[aria-pressed="true"] .cuenta{background:rgba(255,255,255,.24);color:inherit}
+select.control{
+  padding:8px 11px;border-radius:10px;border:1px solid var(--borde-fuerte);
+  background:var(--superficie-2);font-size:13px;font-weight:600;cursor:pointer;
+}
+select.control:focus{outline:none;border-color:var(--acento)}
+.grupo-vista{display:flex;background:var(--superficie-2);border:1px solid var(--borde-fuerte);border-radius:10px;padding:2px;gap:2px}
+.grupo-vista button{
+  border:0;background:transparent;padding:6px 10px;border-radius:8px;cursor:pointer;
+  color:var(--texto-2);line-height:0;
+}
+.grupo-vista button[aria-pressed="true"]{background:var(--superficie);color:var(--acento);box-shadow:var(--sombra)}
+.grupo-vista svg{width:16px;height:16px}
+
+/* ---------- rejilla de tarjetas ---------- */
+.rejilla{display:grid;gap:12px;grid-template-columns:repeat(auto-fill,minmax(330px,1fr))}
+.tarjeta{
+  position:relative;background:var(--superficie);border:1px solid var(--borde);
+  border-radius:var(--radio);box-shadow:var(--sombra);overflow:hidden;
+  display:flex;flex-direction:column;
+  transition:border-color .14s,transform .1s,box-shadow .14s;
+}
+.tarjeta:hover{border-color:var(--borde-fuerte);transform:translateY(-2px);box-shadow:var(--sombra-alta)}
+.tarjeta::before{content:"";position:absolute;inset:0 auto 0 0;width:4px;background:var(--tono,var(--borde-fuerte))}
+.tarjeta.n-critico{--tono:var(--peligro)}
+.tarjeta.n-atencion{--tono:var(--aviso)}
+.tarjeta.n-bien{--tono:var(--ok)}
+.tarjeta.n-listo{--tono:var(--borde-fuerte)}
+.tarjeta.n-listo{opacity:.82}
+.tarjeta.n-listo:hover{opacity:1}
+
+.t-cabecera{display:flex;gap:12px;padding:14px 15px 11px 18px;align-items:flex-start}
+.reloj{
+  flex:none;width:60px;border-radius:11px;padding:7px 4px;text-align:center;
+  background:var(--superficie-2);border:1px solid var(--borde);
+}
+.reloj b{display:block;font-size:21px;font-weight:800;line-height:1.05;font-variant-numeric:tabular-nums;letter-spacing:-.03em}
+.reloj span{display:block;font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--texto-3);margin-top:1px}
+.n-critico .reloj{background:var(--peligro-suave);border-color:color-mix(in srgb,var(--peligro) 28%,transparent)}
+.n-critico .reloj b{color:var(--peligro)}
+.n-atencion .reloj{background:var(--aviso-suave);border-color:color-mix(in srgb,var(--aviso) 28%,transparent)}
+.n-atencion .reloj b{color:var(--aviso)}
+.n-bien .reloj{background:var(--ok-suave);border-color:color-mix(in srgb,var(--ok) 25%,transparent)}
+.n-bien .reloj b{color:var(--ok)}
+.n-listo .reloj b{color:var(--texto-3)}
+
+.t-id{min-width:0;flex:1}
+.t-nro{
+  font-family:var(--mono);font-size:19px;font-weight:700;letter-spacing:-.02em;
+  display:flex;align-items:center;gap:7px;
+}
+.t-nro button{
+  border:0;background:transparent;cursor:pointer;color:var(--texto-3);padding:3px;
+  border-radius:6px;line-height:0;opacity:0;transition:opacity .13s
+}
+.tarjeta:hover .t-nro button{opacity:1}
+.t-nro button:hover{background:var(--superficie-3);color:var(--acento)}
+.t-nro svg{width:14px;height:14px}
+.t-sub{font-size:13px;color:var(--texto-2);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.t-etiquetas{display:flex;gap:5px;flex-wrap:wrap;margin-top:7px}
+
+.marca-tipo{
+  font-size:10px;font-weight:800;letter-spacing:.07em;text-transform:uppercase;
+  padding:3px 7px;border-radius:6px;background:var(--superficie-3);color:var(--texto-2);
+  white-space:nowrap;
+}
+.marca-tipo.es-tercero{background:var(--tercero-suave);color:var(--tercero)}
+.marca-tipo.es-cleas{background:var(--cleas-suave);color:var(--cleas)}
+.marca-tipo.es-alerta{background:var(--peligro-suave);color:var(--peligro)}
+.marca-tipo.es-aviso{background:var(--aviso-suave);color:var(--aviso)}
+.marca-tipo.es-ok{background:var(--ok-suave);color:var(--ok)}
+
+/* pasos: informe -> cierre -> facturado */
+.pasos{display:flex;padding:0 15px 12px 18px}
+.paso{
+  flex:1;position:relative;display:flex;flex-direction:column;align-items:center;gap:5px;
+  background:none;border:0;cursor:pointer;padding:6px 2px 3px;border-radius:9px;
+}
+.paso:hover{background:var(--superficie-2)}
+.paso:focus-visible{outline:2px solid var(--acento);outline-offset:1px}
+.paso::after{content:"";position:absolute;top:13px;left:50%;width:100%;height:2px;background:var(--borde);z-index:0}
+.paso:last-child::after{display:none}
+.paso.enlazado::after{background:color-mix(in srgb,var(--ok) 55%,var(--borde))}
+.paso .punto{
+  position:relative;z-index:1;width:16px;height:16px;border-radius:50%;
+  border:2px solid var(--borde-fuerte);background:var(--superficie);
+  display:grid;place-items:center;transition:all .15s;
+}
+.paso .punto svg{width:9px;height:9px;color:#fff;opacity:0;transition:opacity .15s}
+.paso.hecho .punto{background:var(--ok);border-color:var(--ok)}
+.paso.hecho .punto svg{opacity:1}
+.paso b{font-size:10px;font-weight:700;color:var(--texto-3);text-transform:uppercase;letter-spacing:.04em}
+.paso.hecho b{color:var(--ok)}
+
+.reloj b.chico{font-size:13px;padding:3px 0}
+.t-datos{padding:0 15px 12px 18px;display:flex;flex-direction:column;gap:5px;font-size:12.5px;color:var(--texto-2)}
+.t-dato{display:flex;align-items:center;gap:7px;min-width:0}
+.t-dato svg{width:13px;height:13px;flex:none;color:var(--texto-3)}
+.t-dato span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.t-dato.urge{color:var(--peligro);font-weight:600}
+.t-dato.urge svg{color:var(--peligro)}
+.t-dato.ojo{color:var(--aviso);font-weight:600}
+.t-dato.ojo svg{color:var(--aviso)}
+.t-nota{
+  margin:0 15px 12px 18px;padding:8px 10px;border-radius:var(--radio-chico);
+  background:var(--superficie-2);border-left:2px solid var(--borde-fuerte);
+  font-size:12.5px;color:var(--texto-2);
+  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;
+}
+.t-pie{
+  margin-top:auto;display:flex;gap:8px;padding:11px 15px;
+  border-top:1px solid var(--borde);background:var(--superficie-2);
+}
+.t-pie .btn{flex:1}
+
+/* ---------- tabla compacta ---------- */
+.caja-tabla{
+  background:var(--superficie);border:1px solid var(--borde);border-radius:var(--radio);
+  box-shadow:var(--sombra);overflow-x:auto;
+}
+table.planilla{border-collapse:collapse;width:100%;font-size:13px;min-width:940px}
+table.planilla th{
+  position:sticky;top:0;z-index:2;background:var(--superficie-2);
+  text-align:left;padding:10px 12px;font-size:11px;font-weight:700;
+  text-transform:uppercase;letter-spacing:.05em;color:var(--texto-2);
+  border-bottom:1px solid var(--borde);white-space:nowrap;
+}
+table.planilla th.orden{cursor:pointer;user-select:none}
+table.planilla th.orden:hover{color:var(--acento)}
+table.planilla td{padding:9px 12px;border-bottom:1px solid var(--borde);vertical-align:middle}
+table.planilla tbody tr{cursor:pointer;transition:background .1s}
+table.planilla tbody tr:hover{background:var(--superficie-2)}
+table.planilla tbody tr:last-child td{border-bottom:0}
+td.col-nro{font-family:var(--mono);font-weight:700;white-space:nowrap}
+td.col-dias{font-variant-numeric:tabular-nums;font-weight:700;white-space:nowrap}
+.pastilla{display:inline-block;width:9px;height:9px;border-radius:50%;background:var(--tono,var(--borde-fuerte));margin-right:7px;vertical-align:-1px}
+tr.n-critico{--tono:var(--peligro)} tr.n-critico td.col-dias{color:var(--peligro)}
+tr.n-atencion{--tono:var(--aviso)} tr.n-atencion td.col-dias{color:var(--aviso)}
+tr.n-bien{--tono:var(--ok)}
+tr.n-listo{--tono:var(--borde-fuerte)} tr.n-listo{opacity:.7}
+.mini-pasos{display:flex;gap:3px}
+.mini-pasos i{width:16px;height:5px;border-radius:99px;background:var(--borde-fuerte);display:block}
+.mini-pasos i.si{background:var(--ok)}
+
+/* ---------- estado vacío ---------- */
+.vacio{
+  text-align:center;padding:64px 24px;background:var(--superficie);
+  border:1px dashed var(--borde-fuerte);border-radius:var(--radio);
+}
+.vacio-icono{
+  width:60px;height:60px;margin:0 auto 16px;border-radius:17px;display:grid;place-items:center;
+  background:var(--acento-suave);color:var(--acento);
+}
+.vacio-icono svg{width:29px;height:29px}
+.vacio h3{font-size:18px;font-weight:700;margin-bottom:6px;letter-spacing:-.02em}
+.vacio p{color:var(--texto-2);font-size:14px;max-width:430px;margin:0 auto 18px}
+
+/* ---------- capa modal ---------- */
+.velo{
+  position:fixed;inset:0;z-index:60;background:rgba(9,14,22,.55);
+  backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px);
+  display:flex;align-items:center;justify-content:center;padding:20px;
+  opacity:0;pointer-events:none;transition:opacity .18s;
+}
+.velo.abierto{opacity:1;pointer-events:auto}
+.modal{
+  background:var(--superficie);border-radius:18px;box-shadow:var(--sombra-alta);
+  width:100%;max-width:660px;max-height:min(88vh,900px);
+  display:flex;flex-direction:column;overflow:hidden;
+  border:1px solid var(--borde);
+  transform:translateY(10px) scale(.99);transition:transform .18s;
+}
+.velo.abierto .modal{transform:none}
+.modal.ancho{max-width:900px}
+.m-cabecera{
+  padding:17px 20px;border-bottom:1px solid var(--borde);
+  display:flex;align-items:center;gap:12px;flex:none;
+}
+.m-cabecera h2{font-size:16.5px;font-weight:700;letter-spacing:-.02em;margin-right:auto}
+.m-cabecera p{font-size:12.5px;color:var(--texto-2);font-weight:400}
+.m-cuerpo{padding:20px;overflow-y:auto;flex:1}
+.m-pie{
+  padding:14px 20px;border-top:1px solid var(--borde);background:var(--superficie-2);
+  display:flex;gap:9px;justify-content:flex-end;flex-wrap:wrap;flex:none;
+}
+.m-pie .izq{margin-right:auto}
+
+/* ---------- panel lateral de detalle ---------- */
+.panel{
+  position:fixed;top:0;right:0;bottom:0;width:min(520px,100%);z-index:70;
+  background:var(--superficie);border-left:1px solid var(--borde);
+  box-shadow:var(--sombra-alta);display:flex;flex-direction:column;
+  transform:translateX(102%);transition:transform .24s cubic-bezier(.32,.72,0,1);
+}
+.panel.abierto{transform:none}
+.panel-velo{position:fixed;inset:0;z-index:65;background:rgba(9,14,22,.4);opacity:0;pointer-events:none;transition:opacity .2s}
+.panel-velo.abierto{opacity:1;pointer-events:auto}
+.p-cabecera{padding:16px 18px;border-bottom:1px solid var(--borde);display:flex;align-items:flex-start;gap:12px;flex:none}
+.p-cuerpo{padding:18px;overflow-y:auto;flex:1}
+.p-pie{padding:13px 18px;border-top:1px solid var(--borde);background:var(--superficie-2);display:flex;gap:8px;flex:none}
+
+.bloque{margin-bottom:20px}
+.bloque-tit{
+  font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.08em;
+  color:var(--texto-3);margin-bottom:9px;display:flex;align-items:center;gap:7px;
+}
+.bloque-tit::after{content:"";flex:1;height:1px;background:var(--borde)}
+.campos{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:11px}
+.campo{display:flex;flex-direction:column;gap:4px}
+.campo.ancho{grid-column:1/-1}
+.campo label{font-size:11.5px;font-weight:700;color:var(--texto-2)}
+.campo input,.campo textarea,.campo select{
+  padding:8px 10px;border-radius:var(--radio-chico);border:1px solid var(--borde-fuerte);
+  background:var(--superficie-2);font-size:13.5px;width:100%;
+}
+.campo textarea{resize:vertical;min-height:74px;line-height:1.55;font-family:inherit}
+.campo input:focus,.campo textarea:focus,.campo select:focus{
+  outline:none;border-color:var(--acento);background:var(--superficie);box-shadow:0 0 0 3px var(--acento-suave)
+}
+.campo input[readonly]{background:var(--superficie-3);color:var(--texto-2)}
+.dato-fijo{font-size:13.5px;padding:8px 10px;background:var(--superficie-2);border-radius:var(--radio-chico);border:1px solid var(--borde);min-height:36px;word-break:break-word}
+.dato-fijo.vacio-txt{color:var(--texto-3);font-style:italic}
+
+.historial{display:flex;flex-direction:column;gap:0}
+.hito{display:flex;gap:11px;padding-bottom:14px;position:relative}
+.hito:not(:last-child)::before{content:"";position:absolute;left:6px;top:16px;bottom:0;width:2px;background:var(--borde)}
+.hito-punto{width:14px;height:14px;border-radius:50%;background:var(--superficie);border:2px solid var(--acento);flex:none;margin-top:2px;z-index:1}
+.hito-punto.gris{border-color:var(--borde-fuerte)}
+.hito-txt{font-size:13px;min-width:0}
+.hito-txt b{font-weight:600}
+.hito-txt time{display:block;font-size:11.5px;color:var(--texto-3);margin-top:1px}
+
+/* ---------- importador ---------- */
+.zona-suelta{
+  border:2px dashed var(--borde-fuerte);border-radius:var(--radio);
+  padding:34px 20px;text-align:center;cursor:pointer;
+  transition:border-color .15s,background .15s;background:var(--superficie-2);
+}
+.zona-suelta:hover,.zona-suelta.encima{border-color:var(--acento);background:var(--acento-suave)}
+.zona-suelta svg{width:38px;height:38px;color:var(--acento);margin-bottom:11px}
+.zona-suelta h3{font-size:15.5px;font-weight:700;margin-bottom:5px}
+.zona-suelta p{font-size:13px;color:var(--texto-2)}
+.zona-suelta .formatos{font-size:11.5px;color:var(--texto-3);margin-top:9px}
+
+.resumen{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:9px;margin-bottom:16px}
+.res-caja{
+  padding:13px;border-radius:var(--radio-chico);text-align:center;
+  border:1px solid var(--borde);background:var(--superficie-2);
+}
+.res-caja b{display:block;font-size:25px;font-weight:800;line-height:1.1;font-variant-numeric:tabular-nums}
+.res-caja span{font-size:11.5px;font-weight:600;color:var(--texto-2);display:block;margin-top:3px}
+.res-caja.nuevos{background:var(--ok-suave);border-color:color-mix(in srgb,var(--ok) 30%,transparent)}
+.res-caja.nuevos b{color:var(--ok)}
+.res-caja.repes{background:var(--aviso-suave);border-color:color-mix(in srgb,var(--aviso) 30%,transparent)}
+.res-caja.repes b{color:var(--aviso)}
+.res-caja.cambios{background:var(--acento-suave);border-color:color-mix(in srgb,var(--acento) 30%,transparent)}
+.res-caja.cambios b{color:var(--acento)}
+.res-caja.dobles{background:var(--peligro-suave);border-color:color-mix(in srgb,var(--peligro) 30%,transparent)}
+.res-caja.dobles b{color:var(--peligro)}
+
+.pestanas{display:flex;gap:3px;border-bottom:1px solid var(--borde);margin-bottom:14px;overflow-x:auto}
+.pestana{
+  padding:9px 13px;border:0;background:transparent;cursor:pointer;font-size:13px;font-weight:600;
+  color:var(--texto-2);border-bottom:2px solid transparent;margin-bottom:-1px;white-space:nowrap;
+}
+.pestana:hover{color:var(--texto)}
+.pestana[aria-selected="true"]{color:var(--acento);border-bottom-color:var(--acento)}
+.lista-nros{
+  display:flex;flex-wrap:wrap;gap:6px;padding:12px;background:var(--superficie-2);
+  border-radius:var(--radio-chico);border:1px solid var(--borde);max-height:210px;overflow-y:auto;
+}
+.nro-pastilla{
+  font-family:var(--mono);font-size:12.5px;font-weight:700;padding:4px 9px;border-radius:7px;
+  background:var(--superficie);border:1px solid var(--borde-fuerte);
+}
+.nro-pastilla.nuevo{background:var(--ok-suave);border-color:color-mix(in srgb,var(--ok) 32%,transparent);color:var(--ok)}
+.nro-pastilla.repe{background:var(--aviso-suave);border-color:color-mix(in srgb,var(--aviso) 32%,transparent);color:var(--aviso)}
+.nro-pastilla.doble{background:var(--peligro-suave);border-color:color-mix(in srgb,var(--peligro) 32%,transparent);color:var(--peligro)}
+.fila-previa{
+  display:flex;align-items:center;gap:10px;padding:9px 11px;border-radius:var(--radio-chico);
+  border:1px solid var(--borde);background:var(--superficie-2);margin-bottom:6px;font-size:13px;
+}
+.fila-previa input[type=checkbox]{width:17px;height:17px;accent-color:var(--acento);flex:none;cursor:pointer}
+.fila-previa .fp-nro{font-family:var(--mono);font-weight:700;flex:none}
+.fila-previa .fp-txt{color:var(--texto-2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;min-width:0}
+
+.aviso-caja{
+  padding:11px 13px;border-radius:var(--radio-chico);font-size:13px;
+  display:flex;gap:9px;align-items:flex-start;margin-bottom:14px;line-height:1.5;
+}
+.aviso-caja svg{width:17px;height:17px;flex:none;margin-top:1px}
+.aviso-caja.info{background:var(--acento-suave);color:var(--texto);border:1px solid color-mix(in srgb,var(--acento) 25%,transparent)}
+.aviso-caja.ok{background:var(--ok-suave);border:1px solid color-mix(in srgb,var(--ok) 25%,transparent)}
+.aviso-caja.ojo{background:var(--aviso-suave);border:1px solid color-mix(in srgb,var(--aviso) 25%,transparent)}
+.aviso-caja.mal{background:var(--peligro-suave);border:1px solid color-mix(in srgb,var(--peligro) 25%,transparent)}
+
+table.mapeo{width:100%;border-collapse:collapse;font-size:13px}
+table.mapeo th{text-align:left;padding:7px 9px;font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--texto-3);border-bottom:1px solid var(--borde)}
+table.mapeo td{padding:6px 9px;border-bottom:1px solid var(--borde)}
+table.mapeo select{width:100%;padding:6px 8px;border-radius:7px;border:1px solid var(--borde-fuerte);background:var(--superficie-2);font-size:12.5px}
+table.mapeo .muestra{color:var(--texto-3);font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:180px}
+
+/* ---------- avisos flotantes ---------- */
+.avisos{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);z-index:90;display:flex;flex-direction:column;gap:8px;align-items:center;pointer-events:none;width:calc(100% - 32px);max-width:460px}
+.aviso{
+  background:var(--texto);color:var(--fondo);padding:11px 16px;border-radius:11px;
+  font-size:13.5px;font-weight:600;box-shadow:var(--sombra-alta);
+  display:flex;align-items:center;gap:9px;pointer-events:auto;
+  animation:entrar .22s cubic-bezier(.3,1.2,.5,1);max-width:100%;
+}
+.aviso svg{width:16px;height:16px;flex:none}
+.aviso.bien{background:var(--ok);color:#fff}
+.aviso.mal{background:var(--peligro);color:#fff}
+@keyframes entrar{from{opacity:0;transform:translateY(12px) scale(.96)}to{opacity:1;transform:none}}
+
+/* ---------- responsive ---------- */
+@media (max-width:760px){
+  .envoltorio{padding:14px}
+  .barra-int{padding:10px 14px;gap:10px}
+  .marca-txt p{display:none}
+  .herramientas{top:59px;padding:10px}
+  .rejilla{grid-template-columns:1fr}
+  .tablero{grid-template-columns:repeat(auto-fit,minmax(132px,1fr));gap:8px}
+  .ficha-num{font-size:23px}
+  .modal{max-height:94vh}
+  .m-pie{flex-direction:column-reverse}
+  .m-pie .btn{width:100%}
+  .m-pie .izq{margin-right:0}
+  .texto-largo{display:none}
+}
+@media (prefers-reduced-motion:reduce){
+  *{animation-duration:.01ms !important;transition-duration:.01ms !important}
+}
+@media print{
+  .barra,.herramientas,.t-pie,.avisos,.velo,.panel{display:none !important}
+  body{background:#fff}
+  .tarjeta{break-inside:avoid;box-shadow:none}
+}
+</style>
+</head>
+<body>
+
+<!-- ===== iconos reutilizables ===== -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+<g id="i-radar" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19.07 4.93A10 10 0 1 1 6.99 3.34"/><path d="M12 12 16 8"/><circle cx="12" cy="12" r="4"/></g>
+<g id="i-buscar" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></g>
+<g id="i-x" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></g>
+<g id="i-subir" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 9 5-5 5 5M12 4v12"/></g>
+<g id="i-bajar" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5M12 15V3"/></g>
+<g id="i-ok" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="m20 6-11 11-5-5"/></g>
+<g id="i-reloj" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></g>
+<g id="i-auto" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 17h14M6.5 17V9.5L8 6h8l1.5 3.5V17"/><circle cx="8" cy="17" r="1.6"/><circle cx="16" cy="17" r="1.6"/><path d="M6.5 11h11"/></g>
+<g id="i-tel" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1 1 .4 1.9.7 2.8a2 2 0 0 1-.4 2.1L8.1 9.9a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.5c.9.4 1.8.6 2.8.7a2 2 0 0 1 1.7 2Z"/></g>
+<g id="i-calendario" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></g>
+<g id="i-alerta" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/><path d="M12 9v4M12 17h.01"/></g>
+<g id="i-copiar" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></g>
+<g id="i-tarjetas" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></g>
+<g id="i-lista" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M8 6h13M8 12h13M8 18h13M3.5 6h.01M3.5 12h.01M3.5 18h.01"/></g>
+<g id="i-ajustes" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-2.9 1.2v.2a2 2 0 1 1-4 0v-.1A1.7 1.7 0 0 0 7 19.4a1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0-1.2-2.9H1a2 2 0 1 1 0-4h.1A1.7 1.7 0 0 0 2.6 7a1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H7a1.7 1.7 0 0 0 1-1.5V1a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V7a1.7 1.7 0 0 0 1.5 1H23a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1Z" transform="translate(1 1) scale(.92)"/></g>
+<g id="i-flecha" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></g>
+<g id="i-mas" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></g>
+<g id="i-tacho" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></g>
+<g id="i-refrescar" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.6-6.4"/><path d="M21 3v6h-6"/></g>
+<g id="i-info" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></g>
+<g id="i-luna" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z"/></g>
+<g id="i-sol" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></g>
+<g id="i-persona" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></g>
+<g id="i-carpeta" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><path d="M14 2v6h6M9 13h6M9 17h6"/></g>
+</defs></svg>
+
+<!-- ===== barra superior ===== -->
+<header class="barra">
+  <div class="barra-int">
+    <div class="marca">
+      <div class="marca-icono"><svg viewBox="0 0 24 24"><use href="#i-radar"/></svg></div>
+      <div class="marca-txt">
+        <h1>Radar de Siniestros</h1>
+        <p id="pieMarca">Río Uruguay Seguros</p>
+      </div>
+    </div>
+    <button class="btn btn-principal" id="btnImportar">
+      <svg viewBox="0 0 24 24"><use href="#i-subir"/></svg><span>Actualizar lista</span>
+    </button>
+    <button class="btn" id="btnExportar">
+      <svg viewBox="0 0 24 24"><use href="#i-bajar"/></svg><span class="texto-largo">Exportar</span>
+    </button>
+    <button class="btn btn-icono btn-fantasma" id="btnTema" title="Cambiar entre claro y oscuro" aria-label="Cambiar tema">
+      <svg viewBox="0 0 24 24"><use href="#i-luna" id="iconoTema"/></svg>
+    </button>
+    <button class="btn btn-icono btn-fantasma" id="btnAjustes" title="Ajustes" aria-label="Ajustes">
+      <svg viewBox="0 0 24 24"><use href="#i-ajustes"/></svg>
+    </button>
+  </div>
+</header>
+
+<div class="envoltorio">
+
+  <!-- ===== tablero ===== -->
+  <section class="tablero" id="tablero" aria-label="Resumen"></section>
+
+  <!-- ===== herramientas ===== -->
+  <section class="herramientas" aria-label="Filtros">
+    <div class="buscador">
+      <svg viewBox="0 0 24 24"><use href="#i-buscar"/></svg>
+      <input type="search" id="buscar" placeholder="Buscar por nº, patente, vehículo, teléfono, notas…" autocomplete="off" aria-label="Buscar">
+      <button class="limpiar oculto" id="limpiarBusqueda" aria-label="Limpiar búsqueda"><svg viewBox="0 0 24 24" width="15" height="15"><use href="#i-x"/></svg></button>
+    </div>
+    <div class="filtros" id="filtros" role="group" aria-label="Filtros rápidos"></div>
+    <select class="control" id="orden" aria-label="Ordenar por">
+      <option value="urgencia">Más urgente primero</option>
+      <option value="revision">Hace más que no lo veo</option>
+      <option value="vencimiento">Vencimiento más cerca</option>
+      <option value="derivacion">Derivación más vieja</option>
+      <option value="reciente">Agregado más reciente</option>
+      <option value="numero">Nº de siniestro</option>
+    </select>
+    <div class="grupo-vista" role="group" aria-label="Tipo de vista">
+      <button id="vistaTarjetas" aria-pressed="true" title="Ver como tarjetas"><svg viewBox="0 0 24 24"><use href="#i-tarjetas"/></svg></button>
+      <button id="vistaTabla" aria-pressed="false" title="Ver como tabla"><svg viewBox="0 0 24 24"><use href="#i-lista"/></svg></button>
+    </div>
+  </section>
+
+  <main id="contenido"></main>
+</div>
+
+<div class="avisos" id="avisos" aria-live="polite"></div>
+
+<!-- ===== importar ===== -->
+<div class="velo" id="veloImportar" role="dialog" aria-modal="true" aria-labelledby="tituloImportar">
+  <div class="modal ancho">
+    <div class="m-cabecera">
+      <div><h2 id="tituloImportar">Actualizar lista</h2><p id="subImportar">Soltá el archivo que bajaste de RUS</p></div>
+      <button class="btn btn-icono btn-fantasma" data-cerrar="veloImportar" aria-label="Cerrar"><svg viewBox="0 0 24 24"><use href="#i-x"/></svg></button>
+    </div>
+    <div class="m-cuerpo">
+
+      <div id="pasoElegir">
+        <div id="cajaVinculo"></div>
+        <div class="zona-suelta" id="zonaSuelta" tabindex="0" role="button" aria-label="Elegir archivo">
+          <svg viewBox="0 0 24 24"><use href="#i-subir"/></svg>
+          <h3>Arrastrá el archivo acá</h3>
+          <p>o hacé clic para buscarlo en tu computadora</p>
+          <p class="formatos">Acepta .xls y .xlsx de RUS, .csv y tu propia planilla</p>
+        </div>
+        <input type="file" id="archivo" accept=".xls,.xlsx,.csv,.txt,.tsv" class="oculto">
+        <div style="text-align:center;margin:14px 0 10px;color:var(--texto-3);font-size:12.5px">— o si preferís —</div>
+        <div class="campo">
+          <label for="pegado">Pegar las filas copiadas del Excel (Ctrl+C / Ctrl+V)</label>
+          <textarea id="pegado" placeholder="Pegá acá las filas, con la primera fila de títulos incluida…" rows="4"></textarea>
+        </div>
+        <div style="display:flex;justify-content:flex-end;margin-top:9px">
+          <button class="btn" id="btnUsarPegado" disabled>Usar lo pegado</button>
+        </div>
+      </div>
+
+      <div id="pasoResultado" class="oculto"></div>
+    </div>
+    <div class="m-pie" id="pieImportar">
+      <button class="btn" data-cerrar="veloImportar">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== mapeo de columnas ===== -->
+<div class="velo" id="veloMapeo" role="dialog" aria-modal="true" aria-labelledby="tituloMapeo">
+  <div class="modal ancho">
+    <div class="m-cabecera">
+      <div><h2 id="tituloMapeo">¿Qué es cada columna?</h2><p>Corregí lo que no haya reconocido solo</p></div>
+      <button class="btn btn-icono btn-fantasma" data-cerrar="veloMapeo" aria-label="Cerrar"><svg viewBox="0 0 24 24"><use href="#i-x"/></svg></button>
+    </div>
+    <div class="m-cuerpo" id="cuerpoMapeo"></div>
+    <div class="m-pie">
+      <button class="btn" data-cerrar="veloMapeo">Cancelar</button>
+      <button class="btn btn-principal" id="btnConfirmarMapeo">Continuar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== exportar ===== -->
+<div class="velo" id="veloExportar" role="dialog" aria-modal="true" aria-labelledby="tituloExportar">
+  <div class="modal">
+    <div class="m-cabecera">
+      <div><h2 id="tituloExportar">Exportar</h2><p>Bajá la planilla para abrirla en Excel</p></div>
+      <button class="btn btn-icono btn-fantasma" data-cerrar="veloExportar" aria-label="Cerrar"><svg viewBox="0 0 24 24"><use href="#i-x"/></svg></button>
+    </div>
+    <div class="m-cuerpo" id="cuerpoExportar"></div>
+    <div class="m-pie"><button class="btn" data-cerrar="veloExportar">Cerrar</button></div>
+  </div>
+</div>
+
+<!-- ===== ajustes ===== -->
+<div class="velo" id="veloAjustes" role="dialog" aria-modal="true" aria-labelledby="tituloAjustes">
+  <div class="modal">
+    <div class="m-cabecera">
+      <div><h2 id="tituloAjustes">Ajustes</h2><p>Cuándo quiero que me avise</p></div>
+      <button class="btn btn-icono btn-fantasma" data-cerrar="veloAjustes" aria-label="Cerrar"><svg viewBox="0 0 24 24"><use href="#i-x"/></svg></button>
+    </div>
+    <div class="m-cuerpo" id="cuerpoAjustes"></div>
+    <div class="m-pie">
+      <button class="btn btn-peligro izq" id="btnBorrarTodo"><svg viewBox="0 0 24 24"><use href="#i-tacho"/></svg>Borrar todo</button>
+      <button class="btn btn-principal" data-cerrar="veloAjustes">Listo</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== detalle ===== -->
+<div class="panel-velo" id="veloPanel"></div>
+<aside class="panel" id="panel" role="dialog" aria-modal="true" aria-label="Detalle del siniestro">
+  <div class="p-cabecera" id="panelCabecera"></div>
+  <div class="p-cuerpo" id="panelCuerpo"></div>
+  <div class="p-pie" id="panelPie"></div>
+</aside>
+
+<script>
+/* ============================================================
+   LECTOR DE PLANILLAS — sin dependencias externas
+   Soporta: .xls (BIFF8 dentro de OLE/CFB), .xlsx (ZIP+XML),
+            .csv/.txt, .xls disfrazado de HTML, y texto pegado.
+   Devuelve siempre: { hojas:[{nombre, filas:[[celda,...]]}], formato }
+   ============================================================ */
+(function (raiz) {
+  'use strict';
+
+  /* ---------- utilidades binarias ---------- */
+  var u8 = function (b) { return b instanceof Uint8Array ? b : new Uint8Array(b); };
+
+  function DV(bytes) { return new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength); }
+
+  function textoUTF8(bytes) {
+    return new TextDecoder('utf-8').decode(bytes);
+  }
+
+  // Excel guarda texto "comprimido" en latin1 o en UTF-16LE
+  function latin1(bytes, ini, largo) {
+    var s = '';
+    for (var i = 0; i < largo; i++) s += String.fromCharCode(bytes[ini + i]);
+    return s;
+  }
+  function utf16le(bytes, ini, cantChars) {
+    var s = '', dv = DV(bytes);
+    for (var i = 0; i < cantChars; i++) s += String.fromCharCode(dv.getUint16(ini + i * 2, true));
+    return s;
+  }
+
+  /* ============================================================
+     1. CFB / OLE  — el contenedor de los .xls viejos
+     ============================================================ */
+  var FIRMA_CFB = [0xD0, 0xCF, 0x11, 0xE0, 0xA1, 0xB1, 0x1A, 0xE1];
+
+  function esCFB(bytes) {
+    for (var i = 0; i < 8; i++) if (bytes[i] !== FIRMA_CFB[i]) return false;
+    return true;
+  }
+
+  function leerCFB(bytes) {
+    var dv = DV(bytes);
+    var tamSector = 1 << dv.getUint16(0x1e, true);
+    var tamMini = 1 << dv.getUint16(0x20, true);
+    var cantFAT = dv.getUint32(0x2c, true);
+    var dirPrimero = dv.getUint32(0x30, true);
+    var corteMini = dv.getUint32(0x38, true);
+    var miniFATPrimero = dv.getUint32(0x3c, true);
+    var cantMiniFAT = dv.getUint32(0x40, true);
+    var difatPrimero = dv.getUint32(0x44, true);
+    var cantDIFAT = dv.getUint32(0x48, true);
+
+    var desplazamiento = function (sector) { return (sector + 1) * tamSector; };
+
+    // --- DIFAT: lista de sectores que contienen la FAT
+    var difat = [];
+    for (var i = 0; i < 109; i++) {
+      var s = dv.getUint32(0x4c + i * 4, true);
+      if (s === 0xffffffff) break;
+      difat.push(s);
+    }
+    var sig = difatPrimero, vueltas = 0;
+    while (sig !== 0xffffffff && sig !== 0xfffffffe && vueltas++ < 100000) {
+      var base = desplazamiento(sig);
+      var porSector = tamSector / 4 - 1;
+      for (var j = 0; j < porSector; j++) {
+        var v = dv.getUint32(base + j * 4, true);
+        if (v !== 0xffffffff) difat.push(v);
+      }
+      sig = dv.getUint32(base + porSector * 4, true);
+    }
+
+    // --- FAT
+    var fat = [];
+    for (var k = 0; k < difat.length && k < cantFAT + 8; k++) {
+      var off = desplazamiento(difat[k]);
+      if (off + tamSector > bytes.length) break;
+      for (var m = 0; m < tamSector / 4; m++) fat.push(dv.getUint32(off + m * 4, true));
+    }
+
+    function cadenaSectores(inicio) {
+      var lista = [], act = inicio, tope = 0;
+      while (act !== 0xfffffffe && act !== 0xffffffff && act < fat.length && tope++ < 1000000) {
+        lista.push(act);
+        act = fat[act];
+      }
+      return lista;
+    }
+
+    function leerCadena(inicio, tamano) {
+      var sectores = cadenaSectores(inicio);
+      var salida = new Uint8Array(sectores.length * tamSector);
+      for (var i = 0; i < sectores.length; i++) {
+        var o = desplazamiento(sectores[i]);
+        salida.set(bytes.subarray(o, Math.min(o + tamSector, bytes.length)), i * tamSector);
+      }
+      return tamano != null && tamano <= salida.length ? salida.subarray(0, tamano) : salida;
+    }
+
+    // --- directorio
+    var dirBytes = leerCadena(dirPrimero);
+    var dirDV = DV(dirBytes);
+    var entradas = [];
+    for (var e = 0; e * 128 + 128 <= dirBytes.length; e++) {
+      var b = e * 128;
+      var largoNombre = dirDV.getUint16(b + 0x40, true);
+      if (largoNombre > 64) largoNombre = 64;
+      var nombre = largoNombre > 2 ? utf16le(dirBytes, b, largoNombre / 2 - 1) : '';
+      entradas.push({
+        nombre: nombre,
+        tipo: dirBytes[b + 0x42],
+        sectorInicial: dirDV.getUint32(b + 0x74, true),
+        tamano: dirDV.getUint32(b + 0x78, true)
+      });
+    }
+
+    // --- mini stream (para archivos chicos)
+    var raizEntrada = entradas[0];
+    var miniStream = raizEntrada ? leerCadena(raizEntrada.sectorInicial, raizEntrada.tamano) : new Uint8Array(0);
+    var miniFAT = [];
+    if (cantMiniFAT > 0) {
+      var mf = leerCadena(miniFATPrimero);
+      var mfDV = DV(mf);
+      for (var n = 0; n < mf.length / 4; n++) miniFAT.push(mfDV.getUint32(n * 4, true));
+    }
+    function leerMini(inicio, tamano) {
+      var salida = new Uint8Array(tamano), escrito = 0, act = inicio, tope = 0;
+      while (act !== 0xfffffffe && act !== 0xffffffff && escrito < tamano && tope++ < 1000000) {
+        var o = act * tamMini;
+        var cuanto = Math.min(tamMini, tamano - escrito);
+        salida.set(miniStream.subarray(o, o + cuanto), escrito);
+        escrito += cuanto;
+        act = miniFAT[act];
+        if (act == null) break;
+      }
+      return salida;
+    }
+
+    function abrirFlujo(nombre) {
+      for (var i = 0; i < entradas.length; i++) {
+        if (entradas[i].nombre === nombre && entradas[i].tipo === 2) {
+          var en = entradas[i];
+          return en.tamano < corteMini ? leerMini(en.sectorInicial, en.tamano)
+                                       : leerCadena(en.sectorInicial, en.tamano);
+        }
+      }
+      return null;
+    }
+
+    return { abrirFlujo: abrirFlujo, entradas: entradas };
+  }
+
+  raiz.__cfb = { esCFB: esCFB, leerCFB: leerCFB, utf16le: utf16le, latin1: latin1, DV: DV };
+})(typeof globalThis !== 'undefined' ? globalThis : window);
+
+/* ============================================================
+   2. BIFF8 — el contenido real del .xls
+   ============================================================ */
+(function (raiz) {
+  'use strict';
+  var DV = raiz.__cfb.DV, utf16le = raiz.__cfb.utf16le, latin1 = raiz.__cfb.latin1;
+
+  // Formatos de numero que Excel trae de fabrica y son fechas
+  var FMT_FECHA_FIJOS = {14:1,15:1,16:1,17:1,18:1,19:1,20:1,21:1,22:1,
+                         27:1,28:1,29:1,30:1,31:1,32:1,33:1,34:1,35:1,36:1,
+                         45:1,46:1,47:1,50:1,51:1,52:1,53:1,54:1,55:1,56:1,57:1,58:1};
+
+  function pareceFecha(codigo) {
+    if (!codigo) return false;
+    // ignoramos lo que este entre comillas o escapado
+    var limpio = codigo.replace(/\\./g, '').replace(/"[^"]*"/g, '').replace(/\[[^\]]*\]/g, '');
+    return /[ymdhs]/i.test(limpio) && !/^[^ymdhs]*$/i.test(limpio);
+  }
+
+  // Lector que sabe saltar de un registro CONTINUE al siguiente
+  function LectorSST(bloques) {
+    this.bloques = bloques; this.b = 0; this.p = 0;
+  }
+  LectorSST.prototype.fin = function () {
+    while (this.b < this.bloques.length && this.p >= this.bloques[this.b].length) { this.b++; this.p = 0; }
+    return this.b >= this.bloques.length;
+  };
+  LectorSST.prototype.byte = function () {
+    if (this.fin()) return 0;
+    return this.bloques[this.b][this.p++];
+  };
+  LectorSST.prototype.u16 = function () { var a = this.byte(), c = this.byte(); return a | (c << 8); };
+  LectorSST.prototype.u32 = function () { return (this.u16() | (this.u16() << 16)) >>> 0; };
+  LectorSST.prototype.saltar = function (n) { for (var i = 0; i < n; i++) this.byte(); };
+  // lee `cant` caracteres respetando que un CONTINUE puede cambiar de 8 a 16 bits
+  LectorSST.prototype.chars = function (cant, ancho) {
+    var s = '', leidos = 0;
+    while (leidos < cant) {
+      if (this.fin()) break;
+      var bloque = this.bloques[this.b];
+      var disponibles = bloque.length - this.p;
+      if (disponibles <= 0) { this.b++; this.p = 0; continue; }
+      var puedo = ancho ? Math.min(cant - leidos, Math.floor(disponibles / 2)) : Math.min(cant - leidos, disponibles);
+      if (puedo <= 0) {
+        // quedo 1 byte suelto en un bloque de 16 bits: pasar al siguiente
+        this.b++; this.p = 0;
+        if (this.b < this.bloques.length) ancho = this.byte() & 0x01;
+        continue;
+      }
+      s += ancho ? utf16le(bloque, this.p, puedo) : latin1(bloque, this.p, puedo);
+      this.p += ancho ? puedo * 2 : puedo;
+      leidos += puedo;
+      if (leidos < cant) {
+        // cruzamos al proximo bloque: viene un byte de banderas nuevo
+        this.b++; this.p = 0;
+        if (this.b < this.bloques.length) ancho = this.byte() & 0x01;
+      }
+    }
+    return s;
+  };
+
+  function leerBIFF(flujo) {
+    var dv = DV(flujo);
+    var pos = 0, largo = flujo.length;
+
+    // --- primera pasada: juntar registros (uniendo CONTINUE al que corresponde)
+    var registros = [];
+    while (pos + 4 <= largo) {
+      var tipo = dv.getUint16(pos, true);
+      var tam = dv.getUint16(pos + 2, true);
+      var datos = flujo.subarray(pos + 4, pos + 4 + tam);
+      if (tipo === 0x003c && registros.length) registros[registros.length - 1].cont.push(datos); // CONTINUE
+      else registros.push({ tipo: tipo, datos: datos, cont: [] });
+      pos += 4 + tam;
+      if (tam === 0 && tipo === 0) break;
+    }
+
+    // --- strings compartidos (SST)
+    var sst = [];
+    var formatos = {};     // ifmt -> codigo
+    var xfs = [];          // indice -> ifmt
+    var hojas = [];        // BOUNDSHEET
+    var modo1904 = false;
+
+    for (var r = 0; r < registros.length; r++) {
+      var reg = registros[r], d = reg.datos, rdv = DV(d);
+      switch (reg.tipo) {
+        case 0x00fc: { // SST
+          var lector = new LectorSST([d].concat(reg.cont));
+          lector.u32(); // total
+          var unicos = lector.u32();
+          for (var i = 0; i < unicos; i++) {
+            if (lector.fin()) break;
+            var cch = lector.u16();
+            var grbit = lector.byte();
+            var ancho = grbit & 0x01, rico = grbit & 0x08, ext = grbit & 0x04;
+            var runs = rico ? lector.u16() : 0;
+            var extLargo = ext ? lector.u32() : 0;
+            sst.push(lector.chars(cch, ancho));
+            lector.saltar(runs * 4);
+            lector.saltar(extLargo);
+          }
+          break;
+        }
+        case 0x041e: { // FORMAT
+          var ifmt = rdv.getUint16(0, true);
+          var cchF = rdv.getUint16(2, true);
+          var anchoF = d[4] & 0x01;
+          formatos[ifmt] = anchoF ? utf16le(d, 5, cchF) : latin1(d, 5, cchF);
+          break;
+        }
+        case 0x00e0: // XF
+          xfs.push(rdv.getUint16(2, true));
+          break;
+        case 0x0085: { // BOUNDSHEET
+          var offBOF = rdv.getUint32(0, true);
+          var cchH = d[6];
+          var anchoH = d[7] & 0x01;
+          hojas.push({
+            nombre: anchoH ? utf16le(d, 8, cchH) : latin1(d, 8, cchH),
+            offset: offBOF, filas: []
+          });
+          break;
+        }
+        case 0x0022: // DATEMODE
+          modo1904 = rdv.getUint16(0, true) === 1;
+          break;
+      }
+    }
+
+    function esXFFecha(ixf) {
+      var ifmt = xfs[ixf];
+      if (ifmt == null) return false;
+      if (FMT_FECHA_FIJOS[ifmt]) return true;
+      return pareceFecha(formatos[ifmt]);
+    }
+
+    function serieAFecha(n) {
+      var base = modo1904 ? Date.UTC(1904, 0, 1) : Date.UTC(1899, 11, 30);
+      if (!modo1904 && n >= 60) { /* Excel cree que 1900 fue bisiesto */ } else if (!modo1904 && n < 60) n += 0;
+      var ms = base + Math.round(n * 86400000);
+      return new Date(ms);
+    }
+
+    function rkANumero(rk) {
+      var entero = (rk & 0x02) !== 0;
+      var div100 = (rk & 0x01) !== 0;
+      var v;
+      if (entero) {
+        v = rk >> 2;            // ya viene con signo
+      } else {
+        var buf = new ArrayBuffer(8), b8 = new DataView(buf);
+        b8.setUint32(4, rk & 0xfffffffc, true);
+        b8.setUint32(0, 0, true);
+        v = b8.getFloat64(0, true);
+      }
+      return div100 ? v / 100 : v;
+    }
+
+    // --- segunda pasada: celdas, hoja por hoja
+    // Cada hoja arranca en su offset de BOF; recorremos los registros por posicion.
+    var indicePorOffset = {};
+    var p2 = 0, idx = 0;
+    while (p2 + 4 <= largo) {
+      var t2 = dv.getUint16(p2, true), s2 = dv.getUint16(p2 + 2, true);
+      if (t2 !== 0x003c) { indicePorOffset[p2] = idx; }
+      if (t2 !== 0x003c) idx++;
+      p2 += 4 + s2;
+    }
+
+    if (!hojas.length) hojas.push({ nombre: 'Hoja1', offset: 0, filas: [] });
+
+    for (var h = 0; h < hojas.length; h++) {
+      var desde = indicePorOffset[hojas[h].offset];
+      if (desde == null) desde = 0;
+      var celdas = {}, maxCol = 0;
+
+      function poner(fila, col, valor) {
+        if (!celdas[fila]) celdas[fila] = {};
+        celdas[fila][col] = valor;
+        if (col > maxCol) maxCol = col;
+      }
+
+      for (var q = desde + 1; q < registros.length; q++) {
+        var rg = registros[q];
+        if (rg.tipo === 0x0809 && q > desde) break;  // arranca la hoja siguiente
+        if (rg.tipo === 0x000a) break;               // EOF de la hoja
+        var dd = rg.datos, ddv = DV(dd);
+        var fila, col, ixf, valor;
+        switch (rg.tipo) {
+          case 0x00fd: // LABELSST
+            fila = ddv.getUint16(0, true); col = ddv.getUint16(2, true);
+            poner(fila, col, sst[ddv.getUint32(6, true)] || '');
+            break;
+          case 0x0204: { // LABEL
+            fila = ddv.getUint16(0, true); col = ddv.getUint16(2, true);
+            var cchL = ddv.getUint16(6, true), anchoL = dd[8] & 0x01;
+            poner(fila, col, anchoL ? utf16le(dd, 9, cchL) : latin1(dd, 9, cchL));
+            break;
+          }
+          case 0x0203: // NUMBER
+            fila = ddv.getUint16(0, true); col = ddv.getUint16(2, true);
+            ixf = ddv.getUint16(4, true); valor = ddv.getFloat64(6, true);
+            poner(fila, col, esXFFecha(ixf) ? serieAFecha(valor) : valor);
+            break;
+          case 0x027e: // RK
+            fila = ddv.getUint16(0, true); col = ddv.getUint16(2, true);
+            ixf = ddv.getUint16(4, true); valor = rkANumero(ddv.getInt32(6, true));
+            poner(fila, col, esXFFecha(ixf) ? serieAFecha(valor) : valor);
+            break;
+          case 0x00bd: { // MULRK
+            fila = ddv.getUint16(0, true);
+            var colIni = ddv.getUint16(2, true);
+            var cant = Math.floor((dd.length - 6) / 6);
+            for (var z = 0; z < cant; z++) {
+              var ix = ddv.getUint16(4 + z * 6, true);
+              var vv = rkANumero(ddv.getInt32(6 + z * 6, true));
+              poner(fila, colIni + z, esXFFecha(ix) ? serieAFecha(vv) : vv);
+            }
+            break;
+          }
+          case 0x0006: { // FORMULA
+            fila = ddv.getUint16(0, true); col = ddv.getUint16(2, true);
+            ixf = ddv.getUint16(4, true);
+            if (dd[12] === 0xff && dd[13] === 0xff) {
+              if (dd[6] === 0x00) {         // resultado texto: viene en el STRING siguiente
+                var sigReg = registros[q + 1];
+                if (sigReg && sigReg.tipo === 0x0207) {
+                  var sd = sigReg.datos, sdv = DV(sd);
+                  var cchS = sdv.getUint16(0, true), anchoS = sd[2] & 0x01;
+                  poner(fila, col, anchoS ? utf16le(sd, 3, cchS) : latin1(sd, 3, cchS));
+                }
+              } else if (dd[6] === 0x01) { poner(fila, col, dd[8] ? true : false); }
+              else if (dd[6] === 0x02) { poner(fila, col, ''); }
+              else { poner(fila, col, ''); }
+            } else {
+              valor = ddv.getFloat64(6, true);
+              poner(fila, col, esXFFecha(ixf) ? serieAFecha(valor) : valor);
+            }
+            break;
+          }
+          case 0x0201: // BLANK
+            fila = ddv.getUint16(0, true); col = ddv.getUint16(2, true);
+            poner(fila, col, '');
+            break;
+          case 0x00be: { // MULBLANK
+            fila = ddv.getUint16(0, true);
+            var cIni = ddv.getUint16(2, true);
+            var cantB = Math.floor((dd.length - 6) / 2);
+            for (var w = 0; w < cantB; w++) poner(fila, cIni + w, '');
+            break;
+          }
+          case 0x00bf: // BOOLERR
+            fila = ddv.getUint16(0, true); col = ddv.getUint16(2, true);
+            poner(fila, col, dd[7] ? '' : (dd[6] ? true : false));
+            break;
+        }
+      }
+
+      var nums = Object.keys(celdas).map(Number);
+      var maxFila = nums.length ? Math.max.apply(null, nums) : -1;
+      var filas = [];
+      for (var f = 0; f <= maxFila; f++) {
+        var linea = [];
+        for (var c2 = 0; c2 <= maxCol; c2++) {
+          var v2 = celdas[f] ? celdas[f][c2] : undefined;
+          linea.push(v2 === undefined ? '' : v2);
+        }
+        filas.push(linea);
+      }
+      hojas[h].filas = filas;
+    }
+
+    return { hojas: hojas.map(function (x) { return { nombre: x.nombre, filas: x.filas }; }), formato: 'xls' };
+  }
+
+  raiz.__biff = { leerBIFF: leerBIFF };
+})(typeof globalThis !== 'undefined' ? globalThis : window);
+
+/* ============================================================
+   3. XLSX (ZIP + XML), CSV, HTML  y  despachador general
+   ============================================================ */
+(function (raiz) {
+  'use strict';
+  var DV = raiz.__cfb.DV;
+
+  /* ---------- ZIP ---------- */
+  async function abrirZIP(bytes) {
+    var dv = DV(bytes);
+    // buscamos el fin del directorio central desde atras
+    var fin = -1;
+    for (var i = bytes.length - 22; i >= Math.max(0, bytes.length - 66000); i--) {
+      if (dv.getUint32(i, true) === 0x06054b50) { fin = i; break; }
+    }
+    if (fin < 0) throw new Error('No parece un archivo .xlsx valido (no encontre el indice del ZIP).');
+    var cantidad = dv.getUint16(fin + 10, true);
+    var inicioDir = dv.getUint32(fin + 16, true);
+
+    var archivos = {};
+    var p = inicioDir;
+    for (var n = 0; n < cantidad; n++) {
+      if (dv.getUint32(p, true) !== 0x02014b50) break;
+      var metodo = dv.getUint16(p + 10, true);
+      var tamComp = dv.getUint32(p + 20, true);
+      var tamCrudo = dv.getUint32(p + 24, true);
+      var largoNombre = dv.getUint16(p + 28, true);
+      var largoExtra = dv.getUint16(p + 30, true);
+      var largoCom = dv.getUint16(p + 32, true);
+      var offLocal = dv.getUint32(p + 42, true);
+      var nombre = new TextDecoder('utf-8').decode(bytes.subarray(p + 46, p + 46 + largoNombre));
+      archivos[nombre] = { metodo: metodo, tamComp: tamComp, tamCrudo: tamCrudo, offLocal: offLocal };
+      p += 46 + largoNombre + largoExtra + largoCom;
+    }
+
+    async function extraer(nombre) {
+      var e = archivos[nombre];
+      if (!e) return null;
+      var largoNom = dv.getUint16(e.offLocal + 26, true);
+      var largoExt = dv.getUint16(e.offLocal + 28, true);
+      var ini = e.offLocal + 30 + largoNom + largoExt;
+      var crudo = bytes.subarray(ini, ini + e.tamComp);
+      if (e.metodo === 0) return crudo;
+      if (e.metodo === 8) {
+        if (typeof DecompressionStream === 'undefined')
+          throw new Error('Tu navegador es muy viejo para abrir .xlsx. Proba con Chrome o Edge actualizado.');
+        var ds = new DecompressionStream('deflate-raw');
+        var stream = new Blob([crudo]).stream().pipeThrough(ds);
+        return new Uint8Array(await new Response(stream).arrayBuffer());
+      }
+      throw new Error('El .xlsx usa una compresion que no puedo abrir (metodo ' + e.metodo + ').');
+    }
+    async function texto(nombre) {
+      var b = await extraer(nombre);
+      return b ? new TextDecoder('utf-8').decode(b) : null;
+    }
+    return { archivos: archivos, extraer: extraer, texto: texto };
+  }
+
+  /* ---------- XML minimo ---------- */
+  function desescapar(s) {
+    if (s.indexOf('&') < 0) return s;
+    return s.replace(/&#x([0-9a-fA-F]+);/g, function (_, h) { return String.fromCodePoint(parseInt(h, 16)); })
+            .replace(/&#(\d+);/g, function (_, d) { return String.fromCodePoint(parseInt(d, 10)); })
+            .replace(/&lt;/g, '<').replace(/&gt;/g, '>')
+            .replace(/&quot;/g, '"').replace(/&apos;/g, "'")
+            .replace(/&amp;/g, '&');
+  }
+  function atributo(etiqueta, nombre) {
+    var m = etiqueta.match(new RegExp('\\s' + nombre + '="([^"]*)"'));
+    return m ? desescapar(m[1]) : null;
+  }
+  function refAColumna(ref) {
+    var m = /^([A-Z]+)/.exec(ref || '');
+    if (!m) return 0;
+    var n = 0, letras = m[1];
+    for (var i = 0; i < letras.length; i++) n = n * 26 + (letras.charCodeAt(i) - 64);
+    return n - 1;
+  }
+
+  var FMT_FECHA_FIJOS = {14:1,15:1,16:1,17:1,18:1,19:1,20:1,21:1,22:1,
+                         27:1,28:1,29:1,30:1,31:1,32:1,33:1,34:1,35:1,36:1,
+                         45:1,46:1,47:1,50:1,51:1,52:1,53:1,54:1,55:1,56:1,57:1,58:1};
+  function pareceFecha(codigo) {
+    if (!codigo) return false;
+    var limpio = codigo.replace(/\\./g, '').replace(/"[^"]*"/g, '').replace(/\[[^\]]*\]/g, '');
+    return /[ymdhs]/i.test(limpio);
+  }
+  function serieAFecha(n) {
+    return new Date(Date.UTC(1899, 11, 30) + Math.round(n * 86400000));
+  }
+
+  async function leerXLSX(bytes) {
+    var zip = await abrirZIP(bytes);
+
+    // strings compartidos
+    var compartidos = [];
+    var ssXml = await zip.texto('xl/sharedStrings.xml');
+    if (ssXml) {
+      var trozos = ssXml.split('<si');
+      for (var i = 1; i < trozos.length; i++) {
+        var txt = '', re = /<t[^>]*>([\s\S]*?)<\/t>/g, m;
+        while ((m = re.exec(trozos[i]))) txt += m[1];
+        compartidos.push(desescapar(txt));
+      }
+    }
+
+    // estilos -> que celdas son fecha
+    var esEstiloFecha = [];
+    var stXml = await zip.texto('xl/styles.xml');
+    if (stXml) {
+      var personalizados = {};
+      var reFmt = /<numFmt\b[^>]*>/g, mf;
+      while ((mf = reFmt.exec(stXml))) {
+        personalizados[atributo(mf[0], 'numFmtId')] = atributo(mf[0], 'formatCode');
+      }
+      var bloque = stXml.match(/<cellXfs[\s\S]*?<\/cellXfs>/);
+      if (bloque) {
+        var reXf = /<xf[^>]*>/g, mx;
+        while ((mx = reXf.exec(bloque[0]))) {
+          var id = atributo(mx[0], 'numFmtId');
+          esEstiloFecha.push(!!(FMT_FECHA_FIJOS[id] || pareceFecha(personalizados[id])));
+        }
+      }
+    }
+
+    // orden de hojas
+    var wbXml = await zip.texto('xl/workbook.xml') || '';
+    var relsXml = await zip.texto('xl/_rels/workbook.xml.rels') || '';
+    var relaciones = {};
+    var reRel = /<Relationship\b[^>]*>/g, mr;
+    while ((mr = reRel.exec(relsXml))) relaciones[atributo(mr[0], 'Id')] = atributo(mr[0], 'Target');
+
+    var listaHojas = [];
+    var reSh = /<sheet\b[^>]*>/g, ms;
+    while ((ms = reSh.exec(wbXml))) {
+      var rid = atributo(ms[0], 'r:id') || atributo(ms[0], 'id');
+      var destino = relaciones[rid] || '';
+      if (destino && destino.charAt(0) !== '/') destino = 'xl/' + destino.replace(/^\.?\//, '');
+      listaHojas.push({ nombre: atributo(ms[0], 'name') || ('Hoja' + (listaHojas.length + 1)), ruta: destino.replace(/^\//, '') });
+    }
+    if (!listaHojas.length) listaHojas.push({ nombre: 'Hoja1', ruta: 'xl/worksheets/sheet1.xml' });
+
+    var hojas = [];
+    for (var h = 0; h < listaHojas.length; h++) {
+      var xml = await zip.texto(listaHojas[h].ruta);
+      if (xml == null) xml = await zip.texto('xl/worksheets/sheet' + (h + 1) + '.xml');
+      hojas.push({ nombre: listaHojas[h].nombre, filas: xml ? parsearHoja(xml, compartidos, esEstiloFecha) : [] });
+    }
+    return { hojas: hojas, formato: 'xlsx' };
+  }
+
+  // Recorre etiquetas <nombre ...> sabiendo si son auto-cerradas.
+  // Devuelve {attrs, dentro} por cada elemento, sin regex ambiguas.
+  function recorrerElementos(xml, nombre, alEncontrar) {
+    var re = new RegExp('<' + nombre + '\\b([^>]*?)(\\/)?>', 'g');
+    var cierre = '</' + nombre + '>';
+    var m;
+    while ((m = re.exec(xml))) {
+      var attrs = m[1] || '';
+      var dentro = '';
+      if (!m[2]) {
+        var fin = xml.indexOf(cierre, re.lastIndex);
+        if (fin < 0) fin = xml.length;
+        dentro = xml.slice(re.lastIndex, fin);
+        re.lastIndex = fin + cierre.length;
+      }
+      alEncontrar(attrs, dentro);
+    }
+  }
+
+  function parsearHoja(xml, compartidos, esEstiloFecha) {
+    var mapa = {}, maxCol = 0, autoFila = -1;
+
+    recorrerElementos(xml, 'row', function (attrsFila, cuerpo) {
+      var nroFila = parseInt(atributo(attrsFila + ' ', 'r') || '0', 10) - 1;
+      if (!(nroFila >= 0)) nroFila = autoFila + 1;
+      autoFila = nroFila;
+      var celdas = {}, colAuto = -1;
+
+      recorrerElementos(cuerpo, 'c', function (attrs, dentro) {
+        var ref = atributo(attrs + ' ', 'r');
+        var col = ref ? refAColumna(ref) : colAuto + 1;
+        colAuto = col;
+        var tipo = atributo(attrs + ' ', 't');
+        var estilo = atributo(attrs + ' ', 's');
+        var valor = '';
+
+        if (tipo === 'inlineStr') {
+          var t = '', reT = /<t[^>]*>([\s\S]*?)<\/t>/g, mt;
+          while ((mt = reT.exec(dentro))) t += mt[1];
+          valor = desescapar(t).replace(/\r\n/g, '\n');
+        } else {
+          var mv = /<v[^>]*>([\s\S]*?)<\/v>/.exec(dentro);
+          var bruto = mv ? desescapar(mv[1]) : '';
+          if (bruto === '') valor = '';
+          else if (tipo === 's') valor = (compartidos[parseInt(bruto, 10)] || '').replace(/\r\n/g, '\n');
+          else if (tipo === 'str') valor = bruto;
+          else if (tipo === 'b') valor = bruto === '1';
+          else if (tipo === 'e') valor = '';
+          else if (tipo === 'd') valor = new Date(bruto);
+          else {
+            var num = parseFloat(bruto);
+            if (isNaN(num)) valor = bruto;
+            else if (estilo != null && esEstiloFecha[parseInt(estilo, 10)] && num > 0) valor = serieAFecha(num);
+            else valor = num;
+          }
+        }
+        celdas[col] = valor;
+        if (col > maxCol) maxCol = col;
+      });
+
+      mapa[nroFila] = celdas;
+    });
+
+    var claves = Object.keys(mapa).map(Number);
+    var maxFila = claves.length ? Math.max.apply(null, claves) : -1;
+    var filas = [];
+    for (var f = 0; f <= maxFila; f++) {
+      var linea = [];
+      for (var c = 0; c <= maxCol; c++) {
+        var v = mapa[f] ? mapa[f][c] : undefined;
+        linea.push(v === undefined ? '' : v);
+      }
+      filas.push(linea);
+    }
+    return filas;
+  }
+
+  /* ---------- CSV / texto pegado ---------- */
+  function leerDelimitado(texto, separador) {
+    if (texto.charCodeAt(0) === 0xfeff) texto = texto.slice(1);
+    if (!separador) {
+      var primera = texto.split(/\r?\n/)[0] || '';
+      var cuenta = { ';': 0, ',': 0, '\t': 0, '|': 0 };
+      for (var k in cuenta) cuenta[k] = (primera.split(k).length - 1);
+      separador = Object.keys(cuenta).sort(function (a, b) { return cuenta[b] - cuenta[a]; })[0];
+      if (!cuenta[separador]) separador = ',';
+    }
+    var filas = [], campo = '', fila = [], entreComillas = false;
+    for (var i = 0; i < texto.length; i++) {
+      var ch = texto[i];
+      if (entreComillas) {
+        if (ch === '"') { if (texto[i + 1] === '"') { campo += '"'; i++; } else entreComillas = false; }
+        else campo += ch;
+      } else if (ch === '"') entreComillas = true;
+      else if (ch === separador) { fila.push(campo); campo = ''; }
+      else if (ch === '\n') { fila.push(campo); filas.push(fila); fila = []; campo = ''; }
+      else if (ch === '\r') { /* nada */ }
+      else campo += ch;
+    }
+    if (campo !== '' || fila.length) { fila.push(campo); filas.push(fila); }
+    return [{ nombre: 'Datos', filas: filas }];
+  }
+
+  /* ---------- .xls que en realidad es HTML ---------- */
+  function leerTablaHTML(texto) {
+    var filas = [];
+    var reTabla = /<table[\s\S]*?<\/table>/gi;
+    var tablas = texto.match(reTabla) || [];
+    var elegida = tablas.sort(function (a, b) { return b.length - a.length; })[0];
+    if (!elegida) return null;
+    var reTr = /<tr[\s\S]*?<\/tr>/gi;
+    var trs = elegida.match(reTr) || [];
+    for (var i = 0; i < trs.length; i++) {
+      var celdas = trs[i].match(/<t[dh][\s\S]*?<\/t[dh]>/gi) || [];
+      filas.push(celdas.map(function (c) {
+        return desescapar(c.replace(/<[^>]*>/g, '')).replace(/ /g, ' ').trim();
+      }));
+    }
+    return filas.length ? [{ nombre: 'Datos', filas: filas }] : null;
+  }
+
+  /* ---------- despachador ---------- */
+  async function leerArchivo(nombreArchivo, buffer) {
+    var bytes = buffer instanceof Uint8Array ? buffer : new Uint8Array(buffer);
+    var ext = (nombreArchivo || '').toLowerCase().split('.').pop();
+
+    if (raiz.__cfb.esCFB(bytes)) {
+      var cfb = raiz.__cfb.leerCFB(bytes);
+      var flujo = cfb.abrirFlujo('Workbook') || cfb.abrirFlujo('Book');
+      if (!flujo) throw new Error('Es un archivo de Excel viejo pero no encontre la planilla adentro.');
+      return raiz.__biff.leerBIFF(flujo);
+    }
+    if (bytes[0] === 0x50 && bytes[1] === 0x4b) return await leerXLSX(bytes);
+
+    var comoTexto = new TextDecoder('utf-8').decode(bytes.subarray(0, bytes.length));
+    if (/<table[\s>]/i.test(comoTexto.slice(0, 8000))) {
+      var html = leerTablaHTML(comoTexto);
+      if (html) return { hojas: html, formato: 'html' };
+    }
+    if (ext === 'csv' || ext === 'txt' || ext === 'tsv' || comoTexto.indexOf('\n') >= 0) {
+      return { hojas: leerDelimitado(comoTexto), formato: 'csv' };
+    }
+    throw new Error('No pude reconocer el formato del archivo.');
+  }
+
+  raiz.LectorPlanillas = {
+    leerArchivo: leerArchivo,
+    leerDelimitado: leerDelimitado,
+    leerXLSX: leerXLSX
+  };
+})(typeof globalThis !== 'undefined' ? globalThis : window);
+/* ============================================================
+   ESCRITOR DE .xlsx  — arma el ZIP y el XML a mano, sin librerias
+   ============================================================ */
+(function (raiz) {
+  'use strict';
+
+  var TABLA_CRC = (function () {
+    var t = new Uint32Array(256);
+    for (var n = 0; n < 256; n++) {
+      var c = n;
+      for (var k = 0; k < 8; k++) c = (c & 1) ? (0xedb88320 ^ (c >>> 1)) : (c >>> 1);
+      t[n] = c >>> 0;
+    }
+    return t;
+  })();
+
+  function crc32(bytes) {
+    var c = 0xffffffff;
+    for (var i = 0; i < bytes.length; i++) c = TABLA_CRC[(c ^ bytes[i]) & 0xff] ^ (c >>> 8);
+    return (c ^ 0xffffffff) >>> 0;
+  }
+
+  var codificar = function (s) { return new TextEncoder().encode(s); };
+
+  async function desinflar(bytes) {
+    if (typeof CompressionStream === 'undefined') return null;
+    try {
+      var cs = new CompressionStream('deflate-raw');
+      var stream = new Blob([bytes]).stream().pipeThrough(cs);
+      return new Uint8Array(await new Response(stream).arrayBuffer());
+    } catch (e) { return null; }
+  }
+
+  function fechaDOS(d) {
+    var hora = ((d.getHours() & 31) << 11) | ((d.getMinutes() & 63) << 5) | ((d.getSeconds() / 2) & 31);
+    var dia = (((d.getFullYear() - 1980) & 127) << 9) | (((d.getMonth() + 1) & 15) << 5) | (d.getDate() & 31);
+    return { hora: hora, dia: dia };
+  }
+
+  async function armarZIP(entradas) {
+    var ahora = fechaDOS(new Date());
+    var partes = [], central = [], desplazamiento = 0;
+
+    for (var i = 0; i < entradas.length; i++) {
+      var nombre = codificar(entradas[i].nombre);
+      var crudo = entradas[i].datos;
+      var suma = crc32(crudo);
+      var comprimido = await desinflar(crudo);
+      var metodo = 8, cuerpo = comprimido;
+      if (!comprimido || comprimido.length >= crudo.length) { metodo = 0; cuerpo = crudo; }
+
+      var enc = new Uint8Array(30 + nombre.length);
+      var dv = new DataView(enc.buffer);
+      dv.setUint32(0, 0x04034b50, true);
+      dv.setUint16(4, 20, true); dv.setUint16(6, 0x0800, true);
+      dv.setUint16(8, metodo, true);
+      dv.setUint16(10, ahora.hora, true); dv.setUint16(12, ahora.dia, true);
+      dv.setUint32(14, suma, true);
+      dv.setUint32(18, cuerpo.length, true); dv.setUint32(22, crudo.length, true);
+      dv.setUint16(26, nombre.length, true); dv.setUint16(28, 0, true);
+      enc.set(nombre, 30);
+      partes.push(enc, cuerpo);
+
+      var cen = new Uint8Array(46 + nombre.length);
+      var cdv = new DataView(cen.buffer);
+      cdv.setUint32(0, 0x02014b50, true);
+      cdv.setUint16(4, 20, true); cdv.setUint16(6, 20, true); cdv.setUint16(8, 0x0800, true);
+      cdv.setUint16(10, metodo, true);
+      cdv.setUint16(12, ahora.hora, true); cdv.setUint16(14, ahora.dia, true);
+      cdv.setUint32(16, suma, true);
+      cdv.setUint32(20, cuerpo.length, true); cdv.setUint32(24, crudo.length, true);
+      cdv.setUint16(28, nombre.length, true);
+      cdv.setUint32(42, desplazamiento, true);
+      cen.set(nombre, 46);
+      central.push(cen);
+
+      desplazamiento += enc.length + cuerpo.length;
+    }
+
+    var tamCentral = central.reduce(function (a, b) { return a + b.length; }, 0);
+    var fin = new Uint8Array(22);
+    var fdv = new DataView(fin.buffer);
+    fdv.setUint32(0, 0x06054b50, true);
+    fdv.setUint16(8, entradas.length, true); fdv.setUint16(10, entradas.length, true);
+    fdv.setUint32(12, tamCentral, true); fdv.setUint32(16, desplazamiento, true);
+
+    var todo = partes.concat(central, [fin]);
+    var total = todo.reduce(function (a, b) { return a + b.length; }, 0);
+    var salida = new Uint8Array(total), pos = 0;
+    for (var j = 0; j < todo.length; j++) { salida.set(todo[j], pos); pos += todo[j].length; }
+    return salida;
+  }
+
+  function escapar(s) {
+    return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/[\x00-\x08\x0b\x0c\x0e-\x1f]/g, '');
+  }
+  function colLetra(n) {
+    var s = '';
+    n++;
+    while (n > 0) { var r = (n - 1) % 26; s = String.fromCharCode(65 + r) + s; n = Math.floor((n - 1) / 26); }
+    return s;
+  }
+  function fechaASerie(d) {
+    return (d.getTime() - d.getTimezoneOffset() * 60000) / 86400000 + 25569;
+  }
+
+  /* filas: matriz de valores. Estilos: 0 normal, 1 encabezado, 2 fecha */
+  async function crearXLSX(nombreHoja, filas) {
+    var xml = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+      '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">' +
+      '<sheetViews><sheetView workbookViewId="0" tabSelected="1">' +
+      '<pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews>' +
+      '<sheetFormatPr defaultRowHeight="15"/><sheetData>';
+
+    var anchos = [];
+    for (var f = 0; f < filas.length; f++) {
+      xml += '<row r="' + (f + 1) + '">';
+      for (var c = 0; c < filas[f].length; c++) {
+        var v = filas[f][c];
+        if (v === null || v === undefined || v === '') continue;
+        var ref = colLetra(c) + (f + 1);
+        var largo = String(v instanceof Date ? 'dd/mm/aaaa' : v).length;
+        anchos[c] = Math.min(46, Math.max(anchos[c] || 9, largo + 2));
+        if (f === 0) {
+          xml += '<c r="' + ref + '" s="1" t="inlineStr"><is><t xml:space="preserve">' + escapar(v) + '</t></is></c>';
+        } else if (v instanceof Date && !isNaN(v)) {
+          xml += '<c r="' + ref + '" s="2"><v>' + fechaASerie(v) + '</v></c>';
+        } else if (typeof v === 'number' && isFinite(v)) {
+          xml += '<c r="' + ref + '"><v>' + v + '</v></c>';
+        } else {
+          xml += '<c r="' + ref + '" t="inlineStr"><is><t xml:space="preserve">' + escapar(v) + '</t></is></c>';
+        }
+      }
+      xml += '</row>';
+    }
+    xml += '</sheetData></worksheet>';
+
+    var cols = '<cols>';
+    for (var a = 0; a < anchos.length; a++) cols += '<col min="' + (a + 1) + '" max="' + (a + 1) + '" width="' + (anchos[a] || 10) + '" customWidth="1"/>';
+    cols += '</cols>';
+    xml = xml.replace('<sheetData>', cols + '<sheetData>');
+
+    var estilos = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+      '<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">' +
+      '<numFmts count="1"><numFmt numFmtId="164" formatCode="dd/mm/yyyy"/></numFmts>' +
+      '<fonts count="2"><font><sz val="11"/><name val="Calibri"/></font>' +
+      '<font><b/><sz val="11"/><color rgb="FFFFFFFF"/><name val="Calibri"/></font></fonts>' +
+      '<fills count="3"><fill><patternFill patternType="none"/></fill>' +
+      '<fill><patternFill patternType="gray125"/></fill>' +
+      '<fill><patternFill patternType="solid"><fgColor rgb="FF1F4E79"/><bgColor indexed="64"/></patternFill></fill></fills>' +
+      '<borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders>' +
+      '<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>' +
+      '<cellXfs count="3">' +
+      '<xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>' +
+      '<xf numFmtId="0" fontId="1" fillId="2" borderId="0" xfId="0" applyFont="1" applyFill="1"/>' +
+      '<xf numFmtId="164" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/>' +
+      '</cellXfs>' +
+      '<cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles>' +
+      '</styleSheet>';
+
+    var entradas = [
+      { nombre: '[Content_Types].xml', datos: codificar('<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/></Types>') },
+      { nombre: '_rels/.rels', datos: codificar('<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>') },
+      { nombre: 'xl/workbook.xml', datos: codificar('<?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="' + escapar(nombreHoja).slice(0, 31) + '" sheetId="1" r:id="rId1"/></sheets></workbook>') },
+      { nombre: 'xl/_rels/workbook.xml.rels', datos: codificar('<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>') },
+      { nombre: 'xl/styles.xml', datos: codificar(estilos) },
+      { nombre: 'xl/worksheets/sheet1.xml', datos: codificar(xml) }
+    ];
+    return await armarZIP(entradas);
+  }
+
+  raiz.EscritorPlanillas = { crearXLSX: crearXLSX, armarZIP: armarZIP };
+})(typeof globalThis !== 'undefined' ? globalThis : window);
+
+/* ============================================================
+   MODELO — datos, normalización y reglas de negocio
+   ============================================================ */
+const CLAVE_GUARDADO = 'radar-siniestros-v1';
+
+const CAMPOS = {
+  nro:          { rotulo:'Nº de siniestro',      grupo:'clave' },
+  fechaDeriv:   { rotulo:'Fecha de derivación',  grupo:'propio', fecha:true },
+  fechaCierre:  { rotulo:'Fecha de cierre',      grupo:'propio', fecha:true },
+  dominio:      { rotulo:'Dominio / patente',    grupo:'propio' },
+  vehiculo:     { rotulo:'Vehículo',             grupo:'propio' },
+  categoria:    { rotulo:'Asegurado o tercero',  grupo:'propio' },
+  telefono:     { rotulo:'Teléfonos',            grupo:'propio' },
+  observaciones:{ rotulo:'Observaciones',        grupo:'propio' },
+  informe:      { rotulo:'Informe',              grupo:'propio', marca:true },
+  cierre:       { rotulo:'Cierre',               grupo:'propio', marca:true },
+  facturado:    { rotulo:'Facturado',            grupo:'propio', marca:true },
+  tramitador:   { rotulo:'Tramitador',           grupo:'propio' },
+  km:           { rotulo:'KM',                   grupo:'propio' },
+  fechaOfrec:   { rotulo:'Fecha de ofrecimiento',grupo:'propio', fecha:true },
+  tarea:        { rotulo:'Nombre de la tarea',   grupo:'rus' },
+  tipoReclamo:  { rotulo:'Tipo de reclamo',      grupo:'rus' },
+  fechaVenc:    { rotulo:'Vencimiento de la tarea', grupo:'rus', fecha:true },
+  plazo:        { rotulo:'Plazo',                grupo:'rus' },
+  prioridad:    { rotulo:'Prioridad en RUS',     grupo:'rus' },
+  estadoRus:    { rotulo:'Estado en RUS',        grupo:'rus' },
+  emisor:       { rotulo:'Emisor',               grupo:'rus' },
+  destinatario: { rotulo:'Destinatario',         grupo:'rus' },
+  fechaAsign:   { rotulo:'Fecha de asignación',  grupo:'rus', fecha:true },
+  fechaSin:     { rotulo:'Fecha del siniestro',  grupo:'rus', fecha:true },
+  duenio:       { rotulo:'Dueño del siniestro',  grupo:'rus' },
+  usuarioIng:   { rotulo:'Usuario que lo ingresó', grupo:'rus' },
+  tipoLesion:   { rotulo:'Tipo de lesión',       grupo:'rus' }
+};
+// Lo que manda RUS siempre pisa lo guardado; el resto sólo rellena huecos.
+const CAMPOS_RUS = Object.keys(CAMPOS).filter(k => CAMPOS[k].grupo === 'rus');
+
+const PERFILES = [
+  { id:'rus', nombre:'Export de RUS · Tareas asignadas', requiere:['numerosiniestro'],
+    mapa:{ nombredelatarea:'tarea', tipodereclamo:'tipoReclamo', fechavencimiento:'fechaVenc',
+           plazo:'plazo', prioridad:'prioridad', estado:'estadoRus', emisor:'emisor',
+           destinatario:'destinatario', fechaasignacion:'fechaAsign', numerosiniestro:'nro',
+           fechasiniestro:'fechaSin', usuarioingreso:'usuarioIng', duenodelsiniestro:'duenio',
+           tipolesion:'tipoLesion' } },
+  { id:'propia', nombre:'Tu planilla de seguimiento', requiere:['siniestro'],
+    mapa:{ fechaderiv:'fechaDeriv', fechacierre:'fechaCierre', siniestro:'nro', dominio:'dominio',
+           vehiculo:'vehiculo', asegoterc:'categoria', telefonos:'telefono', observaciones:'observaciones',
+           informe:'informe', cierre:'cierre', facturado:'facturado', tramitador:'tramitador',
+           km:'km', fechaofrecimiento:'fechaOfrec' } }
+];
+
+// Para archivos que no son ninguno de los dos conocidos
+const SINONIMOS = {
+  nro:['numerosiniestro','nrosiniestro','nsiniestro','siniestro','nrodesiniestro','numerodesiniestro','numsiniestro','siniestronro'],
+  fechaDeriv:['fechaderiv','fechaderivacion','derivacion','fechaalta','fechacarga'],
+  fechaCierre:['fechacierre','cierrefecha'],
+  dominio:['dominio','patente','chapa'],
+  vehiculo:['vehiculo','auto','marca','modelo','marcamodelo'],
+  categoria:['asegoterc','asegoterce','asegotercero','tipo','asegurado','tercero','condicion'],
+  telefono:['telefonos','telefono','tel','celular','contacto'],
+  observaciones:['observaciones','observacion','obs','detalle','comentarios','notas','descripcion'],
+  informe:['informe','informes'], cierre:['cierre'], facturado:['facturado','factura','facturacion'],
+  tramitador:['tramitador','gestor','responsable'], km:['km','kilometros','kms'],
+  fechaOfrec:['fechaofrecimiento','ofrecimiento'],
+  tarea:['nombredelatarea','tarea','tareaasignada'],
+  tipoReclamo:['tipodereclamo','reclamo','cobertura','ramo','seccion'],
+  fechaVenc:['fechavencimiento','vencimiento','vence'],
+  plazo:['plazo'], prioridad:['prioridad'], estadoRus:['estado','situacion','estadosiniestro'],
+  emisor:['emisor'], destinatario:['destinatario'], fechaAsign:['fechaasignacion','asignacion'],
+  fechaSin:['fechasiniestro','fechadelsiniestro','ocurrencia','fechaocurrencia'],
+  duenio:['duenodelsiniestro','dueno','duenosiniestro'],
+  usuarioIng:['usuarioingreso','usuario','cargadopor'],
+  tipoLesion:['tipolesion','lesion']
+};
+
+const AJUSTES_POR_DEFECTO = { diasGeneral:12, diasTercero:7, ocultarListos:false, tema:'auto' };
+
+let ESTADO = { version:1, siniestros:[], ajustes:{...AJUSTES_POR_DEFECTO}, meta:{} };
+
+/* ---------- texto ---------- */
+const sinAcentos = s => String(s == null ? '' : s)
+  .normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+  .replace(/ñ/gi,'n');
+const claveCol = s => sinAcentos(s).toLowerCase().replace(/[^a-z0-9]/g,'');
+
+function normalizarNro(v){
+  if (v == null) return '';
+  let s = String(v).trim();
+  if (/^\d+\.0+$/.test(s)) s = s.split('.')[0];            // 1736879.0 -> 1736879
+  if (/^\d+(\.\d+)?e\+?\d+$/i.test(s)) s = String(Math.round(Number(s)));
+  s = sinAcentos(s).toUpperCase().replace(/[^0-9A-Z]/g,'');
+  s = s.replace(/^0+(?=\d)/,'');                            // 0012345 -> 12345
+  return s;
+}
+
+function textoCelda(v){
+  if (v == null) return '';
+  if (v instanceof Date) return isNaN(v) ? '' : formatearFecha(aISO(v));
+  if (typeof v === 'number'){
+    if (Number.isInteger(v)) return String(v);
+    return String(v).replace(/\.0+$/,'');
+  }
+  if (typeof v === 'boolean') return v ? 'Sí' : '';
+  return String(v).trim();
+}
+
+/* ---------- fechas ---------- */
+const dosDig = n => String(n).padStart(2,'0');
+function aISO(d){ return d.getUTCFullYear()+'-'+dosDig(d.getUTCMonth()+1)+'-'+dosDig(d.getUTCDate()); }
+function armarISO(a,m,d){
+  if (!(a>1900 && a<2200 && m>=1 && m<=12 && d>=1 && d<=31)) return '';
+  return a+'-'+dosDig(m)+'-'+dosDig(d);
+}
+function aFechaISO(v){
+  if (v instanceof Date) return isNaN(v) ? '' : aISO(v);
+  if (typeof v === 'number' && v > 20000 && v < 80000){
+    return aISO(new Date(Date.UTC(1899,11,30) + Math.round(v*86400000)));
+  }
+  const s = String(v == null ? '' : v).trim();
+  if (!s) return '';
+  let m = /^(\d{4})-(\d{1,2})-(\d{1,2})/.exec(s);
+  if (m) return armarISO(+m[1],+m[2],+m[3]);
+  m = /^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{2,4})/.exec(s);
+  if (m){ let a = +m[3]; if (a < 100) a += a < 60 ? 2000 : 1900; return armarISO(a,+m[2],+m[1]); }
+  return '';
+}
+function desdeISO(iso){
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso || '');
+  return m ? new Date(+m[1], +m[2]-1, +m[3]) : null;
+}
+function formatearFecha(iso){
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso || '');
+  return m ? m[3]+'/'+m[2]+'/'+m[1] : '';
+}
+function hoyISO(){
+  const d = new Date();
+  return d.getFullYear()+'-'+dosDig(d.getMonth()+1)+'-'+dosDig(d.getDate());
+}
+function diasEntre(isoA, isoB){
+  const a = desdeISO(isoA), b = desdeISO(isoB);
+  if (!a || !b) return null;
+  return Math.round((b - a) / 86400000);
+}
+/** días transcurridos desde una marca de tiempo (o null si nunca) */
+function diasDesde(marca){
+  if (!marca) return null;
+  const d = new Date(marca);
+  if (isNaN(d)) return null;
+  const soloDia = d.getFullYear()+'-'+dosDig(d.getMonth()+1)+'-'+dosDig(d.getDate());
+  return diasEntre(soloDia, hoyISO());
+}
+function textoDias(n){
+  if (n === null) return 'nunca';
+  if (n <= 0) return 'hoy';
+  if (n === 1) return 'ayer';
+  return 'hace ' + n + ' días';
+}
+
+/* ---------- categoría ---------- */
+function deducirCategoria(valor, tipoReclamo, tarea){
+  const t = sinAcentos(valor).toLowerCase();
+  if (/cleas/.test(t)) return 'cleas';
+  if (/3\s*ro|3\s*ero|tercer/.test(t)) return 'tercero';
+  if (/aseg/.test(t)) return 'asegurado';
+  const r = sinAcentos(String(tipoReclamo||'') + ' ' + String(tarea||'')).toLowerCase();
+  if (/rc\s*cosas|responsabilidad civil|reclamos? de tercero|de terceros/.test(r)) return 'tercero';
+  if (/dano parcial|dano total|todo riesgo|cesvicom/.test(r)) return 'asegurado';
+  return t ? 'otro' : '';
+}
+const ROTULO_CATEGORIA = { tercero:'Tercero', cleas:'CLEAS', asegurado:'Asegurado', otro:'Otro', '':'Sin definir' };
+
+/* ---------- marcas X ---------- */
+const esMarca = v => {
+  const s = String(v == null ? '' : v).trim().toLowerCase();
+  return !!s && s !== '0' && s !== 'no' && s !== '-' && s !== 'false';
+};
+
+/* ---------- urgencia ---------- */
+function calcularUrgencia(s){
+  const a = ESTADO.ajustes;
+  const esTercero = s.categoria === 'tercero';
+  const motivos = [];
+
+  if (esMarca(s.facturado) && esMarca(s.cierre))
+    return { nivel:'listo', puntaje:-1, motivos:['Ciclo completo'],
+             diasSinVer:diasDesde(s.ultimaRevision || s.creado), nuncaRevisado:!s.ultimaRevision };
+
+  let p = 0;
+  // Si nunca lo revisó, contamos desde que entró al sistema: así el primer día
+  // no aparece todo en rojo y la cuenta empieza a correr desde algo real.
+  const nuncaRevisado = !s.ultimaRevision;
+  let diasSinVer = diasDesde(s.ultimaRevision || s.creado);
+  if (diasSinVer === null) diasSinVer = 0;
+  const umbral = esTercero ? a.diasTercero : a.diasGeneral;
+
+  if (s.fechaVenc){
+    const faltan = diasEntre(hoyISO(), s.fechaVenc);
+    if (faltan !== null){
+      if (faltan < 0){ p += 100 + Math.min(60, -faltan); motivos.push('Venció hace ' + (-faltan) + ' día' + (faltan===-1?'':'s')); }
+      else if (faltan === 0){ p += 70; motivos.push('Vence hoy'); }
+      else if (faltan <= 2){ p += 55; motivos.push('Vence en ' + faltan + ' día' + (faltan===1?'':'s')); }
+      else if (faltan <= 5){ p += 32; motivos.push('Vence en ' + faltan + ' días'); }
+    }
+  }
+  if (diasSinVer > umbral){
+    p += 30 + Math.min(40, (diasSinVer - umbral) * 2);
+    motivos.push((nuncaRevisado ? 'Nunca lo abriste, van ' : 'Sin revisar hace ') + diasSinVer + ' días');
+  } else if (diasSinVer > Math.ceil(umbral / 2)) p += 12;
+  if (nuncaRevisado) p += 8;
+
+  if (esTercero) p += 15;
+  if (/alta/i.test(s.prioridad||'')) p += 10;
+
+  if (!esMarca(s.informe) && s.fechaDeriv){
+    const d = diasEntre(s.fechaDeriv, hoyISO());
+    if (d !== null && d > 15){ p += 25; motivos.push('Derivado hace ' + d + ' días y sin informe'); }
+  }
+  return { nivel: p >= 70 ? 'critico' : (p >= 28 ? 'atencion' : 'bien'),
+           puntaje:p, motivos, diasSinVer, nuncaRevisado };
+}
+
+/* ---------- guardado ---------- */
+function guardar(){
+  try {
+    localStorage.setItem(CLAVE_GUARDADO, JSON.stringify(ESTADO));
+    return true;
+  } catch(e){
+    avisar('No pude guardar en este navegador. Bajá un respaldo para no perder los datos.', 'mal');
+    return false;
+  }
+}
+function cargar(){
+  try {
+    const crudo = localStorage.getItem(CLAVE_GUARDADO);
+    if (!crudo) return;
+    const d = JSON.parse(crudo);
+    if (d && Array.isArray(d.siniestros)){
+      ESTADO = { version:1, siniestros:d.siniestros, ajustes:{...AJUSTES_POR_DEFECTO, ...(d.ajustes||{})}, meta:d.meta||{} };
+    }
+  } catch(e){ /* arrancamos vacíos */ }
+}
+const nuevoId = () => 'S' + Date.now().toString(36) + Math.random().toString(36).slice(2,7);
+const porNro = () => {
+  const m = new Map();
+  ESTADO.siniestros.forEach(s => { if (s.nro) m.set(s.nro, s); });
+  return m;
+};
+
+/* ============================================================
+   IMPORTAR — leer, reconocer columnas, cruzar y deduplicar
+   ============================================================ */
+
+/** Busca la fila de títulos: la que más columnas conocidas tenga. */
+function ubicarCabecera(filas){
+  let mejor = { indice:0, puntaje:-1, perfil:null };
+  const tope = Math.min(filas.length, 20);
+  for (let i = 0; i < tope; i++){
+    const claves = (filas[i] || []).map(claveCol).filter(Boolean);
+    if (!claves.length) continue;
+    const juego = new Set(claves);
+    for (const perfil of PERFILES){
+      if (perfil.requiere.every(r => juego.has(r))){
+        const puntaje = 1000 + claves.filter(c => perfil.mapa[c]).length;
+        if (puntaje > mejor.puntaje) mejor = { indice:i, puntaje, perfil };
+      }
+    }
+    let sueltos = 0;
+    for (const c of claves)
+      for (const campo in SINONIMOS) if (SINONIMOS[campo].includes(c)) { sueltos++; break; }
+    if (sueltos > mejor.puntaje) mejor = { indice:i, puntaje:sueltos, perfil:null };
+  }
+  return mejor;
+}
+
+/** Devuelve {mapa:{indiceColumna->campo}, perfil, cabecera:[...], indiceCabecera} */
+function reconocerColumnas(filas){
+  const encontrado = ubicarCabecera(filas);
+  const cabecera = (filas[encontrado.indice] || []).map(textoCelda);
+  const mapa = {};
+  const usados = new Set();
+
+  cabecera.forEach((titulo, i) => {
+    const c = claveCol(titulo);
+    if (!c) return;
+    let campo = encontrado.perfil ? encontrado.perfil.mapa[c] : null;
+    if (!campo){
+      for (const k in SINONIMOS){ if (SINONIMOS[k].includes(c)) { campo = k; break; } }
+    }
+    if (campo && !usados.has(campo)){ mapa[i] = campo; usados.add(campo); }
+  });
+
+  return { mapa, perfil:encontrado.perfil, cabecera, indiceCabecera:encontrado.indice };
+}
+
+/** Convierte las filas de datos en registros usando el mapa de columnas. */
+function armarRegistros(filas, reconocido){
+  const salida = [];
+  for (let f = reconocido.indiceCabecera + 1; f < filas.length; f++){
+    const fila = filas[f] || [];
+    if (!fila.some(v => textoCelda(v) !== '')) continue;
+    const reg = { _fila:f + 1 };
+    for (const i in reconocido.mapa){
+      const campo = reconocido.mapa[i];
+      const bruto = fila[i];
+      reg[campo] = CAMPOS[campo] && CAMPOS[campo].fecha ? aFechaISO(bruto) : textoCelda(bruto);
+    }
+    reg.nro = normalizarNro(reg.nro);
+    reg.categoria = deducirCategoria(reg.categoria, reg.tipoReclamo, reg.tarea);
+    salida.push(reg);
+  }
+  return salida;
+}
+
+/** Cruza los registros entrantes contra lo que ya está guardado. */
+function cruzar(registros){
+  const guardados = porNro();
+  const vistos = new Map();
+  const res = { nuevos:[], repetidos:[], dobles:[], sinNro:0, total:registros.length };
+
+  for (const reg of registros){
+    if (!reg.nro){ res.sinNro++; continue; }
+
+    if (vistos.has(reg.nro)){                       // repetido dentro del propio archivo
+      const yaVisto = vistos.get(reg.nro);
+      let doble = res.dobles.find(d => d.nro === reg.nro);
+      if (!doble){ doble = { nro:reg.nro, filas:[yaVisto._fila] }; res.dobles.push(doble); }
+      doble.filas.push(reg._fila);
+      continue;
+    }
+    vistos.set(reg.nro, reg);
+
+    const existente = guardados.get(reg.nro);
+    if (existente){
+      const difs = [];
+      for (const campo in reg){
+        if (campo.charAt(0) === '_' || campo === 'nro') continue;
+        const entra = reg[campo], tiene = existente[campo] || '';
+        if (!entra || String(entra) === String(tiene)) continue;
+        if (tiene) difs.push({ campo, antes:tiene, ahora:entra });
+      }
+      res.repetidos.push({ nro:reg.nro, entrante:reg, existente, difs });
+    } else {
+      res.nuevos.push(reg);
+    }
+  }
+  return res;
+}
+
+/** Aplica la importación. Devuelve el resumen de lo que hizo. */
+function aplicarImportacion(cruce, opciones){
+  const ahora = new Date().toISOString();
+  const lote = 'L' + Date.now().toString(36);
+  const agregados = [];
+
+  (opciones.nuevosElegidos || cruce.nuevos).forEach(reg => {
+    const s = { id:nuevoId(), lote, creado:ahora, actualizado:ahora, ultimaRevision:null, notas:'', historial:[] };
+    for (const campo in CAMPOS) s[campo] = reg[campo] || '';
+    s.nro = reg.nro;
+    s.historial.push({ f:ahora, t:'alta', d:'Agregado desde ' + (opciones.nombreArchivo || 'una importación') });
+    ESTADO.siniestros.push(s);
+    agregados.push(s.nro);
+  });
+
+  let actualizados = 0;
+  if (opciones.actualizarExistentes){
+    const esDeRus = opciones.perfilId === 'rus';
+    cruce.repetidos.forEach(r => {
+      let cambio = false;
+      for (const campo in r.entrante){
+        if (campo.charAt(0) === '_' || campo === 'nro') continue;
+        const entra = r.entrante[campo];
+        if (!entra) continue;
+        const tiene = r.existente[campo] || '';
+        // RUS manda sobre sus propios campos; el resto sólo rellena huecos
+        // salvo que estemos importando la planilla propia, que sí es la fuente.
+        const puedePisar = (esDeRus && CAMPOS_RUS.includes(campo)) || (!esDeRus && opciones.perfilId === 'propia');
+        if (tiene && !puedePisar) continue;
+        if (String(tiene) === String(entra)) continue;
+        r.existente[campo] = entra;
+        cambio = true;
+      }
+      if (cambio){
+        r.existente.actualizado = ahora;
+        r.existente.historial = r.existente.historial || [];
+        r.existente.historial.push({ f:ahora, t:'import', d:'Datos actualizados desde ' + (opciones.nombreArchivo || 'una importación') });
+        actualizados++;
+      }
+    });
+  }
+
+  ESTADO.meta.ultimaImportacion = ahora;
+  ESTADO.meta.nombreArchivo = opciones.nombreArchivo || '';
+  ESTADO.meta.ultimoLote = { id:lote, nros:agregados, fecha:ahora, archivo:opciones.nombreArchivo || '' };
+  guardar();
+  return { agregados:agregados.length, actualizados, nros:agregados };
+}
+
+function deshacerUltimaImportacion(){
+  const lote = ESTADO.meta.ultimoLote;
+  if (!lote || !lote.nros || !lote.nros.length) return 0;
+  const antes = ESTADO.siniestros.length;
+  ESTADO.siniestros = ESTADO.siniestros.filter(s => s.lote !== lote.id);
+  const quitados = antes - ESTADO.siniestros.length;
+  ESTADO.meta.ultimoLote = null;
+  guardar();
+  return quitados;
+}
+
+/** Duplicados que ya existen dentro de lo guardado (la planilla venía con repetidos). */
+function duplicadosGuardados(){
+  const cuenta = new Map();
+  ESTADO.siniestros.forEach(s => {
+    if (!s.nro) return;
+    cuenta.set(s.nro, (cuenta.get(s.nro) || 0) + 1);
+  });
+  return [...cuenta.entries()].filter(([,n]) => n > 1).map(([nro,n]) => ({ nro, veces:n }));
+}
+
+/* ============================================================
+   VISTA — pintar el tablero, las tarjetas y la tabla
+   ============================================================ */
+const VISTA = { filtro:'activos', busqueda:'', orden:'urgencia', modo:'tarjetas', ordenTabla:null };
+const $  = s => document.querySelector(s);
+const $$ = s => [...document.querySelectorAll(s)];
+const esc = s => String(s == null ? '' : s)
+  .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+const icono = (n, cls) => '<svg viewBox="0 0 24 24"' + (cls ? ' class="'+cls+'"' : '') + '><use href="#i-'+n+'"/></svg>';
+
+function avisar(texto, tipo){
+  const caja = $('#avisos');
+  const el = document.createElement('div');
+  el.className = 'aviso' + (tipo ? ' ' + tipo : '');
+  el.innerHTML = (tipo === 'bien' ? icono('ok') : tipo === 'mal' ? icono('alerta') : icono('info')) +
+                 '<span>' + esc(texto) + '</span>';
+  caja.appendChild(el);
+  setTimeout(() => { el.style.opacity = '0'; el.style.transition = 'opacity .3s'; setTimeout(() => el.remove(), 320); }, 4200);
+}
+
+/* ---------- filtros ---------- */
+const FILTROS = {
+  activos:    { rotulo:'En curso',      pie:'sin facturar',        prueba:s => !(esMarca(s.facturado) && esMarca(s.cierre)) },
+  urgentes:   { rotulo:'Urgentes',      pie:'atención ya',         clase:'critica', prueba:s => s._u.nivel === 'critico' },
+  terceros:   { rotulo:'Terceros',      pie:'en curso',            clase:'tercera', prueba:s => s.categoria === 'tercero' && !(esMarca(s.facturado) && esMarca(s.cierre)) },
+  sinver:     { rotulo:'Sin revisar',   pie:'hace mucho',          clase:'avisa',   prueba:s => {
+                  if (esMarca(s.facturado) && esMarca(s.cierre)) return false;
+                  const d = s._u.diasSinVer;
+                  return d !== null && d > (s.categoria === 'tercero' ? ESTADO.ajustes.diasTercero : ESTADO.ajustes.diasGeneral);
+                } },
+  porfacturar:{ rotulo:'Por facturar',  pie:'informe y cierre ok', clase:'buena',   prueba:s => esMarca(s.informe) && esMarca(s.cierre) && !esMarca(s.facturado) },
+  todos:      { rotulo:'Todos',         pie:'incluye terminados',  prueba:() => true }
+};
+
+function coincideBusqueda(s, q){
+  if (!q) return true;
+  const texto = [s.nro, s.dominio, s.vehiculo, s.telefono, s.observaciones, s.notas,
+                 s.tramitador, s.tarea, s.tipoReclamo, s.duenio, s.emisor,
+                 ROTULO_CATEGORIA[s.categoria]].join(' ').toLowerCase();
+  return sinAcentos(texto).includes(sinAcentos(q).toLowerCase());
+}
+
+function listaVisible(){
+  ESTADO.siniestros.forEach(s => { s._u = calcularUrgencia(s); });
+  const f = FILTROS[VISTA.filtro] || FILTROS.activos;
+  let lista = ESTADO.siniestros.filter(s => f.prueba(s) && coincideBusqueda(s, VISTA.busqueda));
+  if (ESTADO.ajustes.ocultarListos && VISTA.filtro !== 'todos')
+    lista = lista.filter(s => s._u.nivel !== 'listo');
+
+  const ordenadores = {
+    urgencia:   (a,b) => b._u.puntaje - a._u.puntaje || (a.nro > b.nro ? 1 : -1),
+    revision:   (a,b) => (b._u.diasSinVer === null ? 1e6 : b._u.diasSinVer) - (a._u.diasSinVer === null ? 1e6 : a._u.diasSinVer),
+    vencimiento:(a,b) => (a.fechaVenc || '9999').localeCompare(b.fechaVenc || '9999'),
+    derivacion: (a,b) => (a.fechaDeriv || '9999').localeCompare(b.fechaDeriv || '9999'),
+    reciente:   (a,b) => String(b.creado||'').localeCompare(String(a.creado||'')),
+    numero:     (a,b) => (Number(a.nro)||0) - (Number(b.nro)||0)
+  };
+  return lista.sort(ordenadores[VISTA.orden] || ordenadores.urgencia);
+}
+
+/* ---------- tablero ---------- */
+function pintarTablero(){
+  ESTADO.siniestros.forEach(s => { s._u = calcularUrgencia(s); });
+  $('#tablero').innerHTML = Object.keys(FILTROS).map(clave => {
+    const f = FILTROS[clave];
+    const n = ESTADO.siniestros.filter(f.prueba).length;
+    return '<button class="ficha ' + (f.clase||'') + '" data-filtro="' + clave + '" aria-pressed="' + (VISTA.filtro===clave) + '">' +
+      '<div class="ficha-num">' + n + '</div>' +
+      '<div class="ficha-rot">' + f.rotulo + '</div>' +
+      '<div class="ficha-pie">' + f.pie + '</div></button>';
+  }).join('');
+
+  $('#filtros').innerHTML =
+    '<button class="chip" id="chipListos" aria-pressed="' + !!ESTADO.ajustes.ocultarListos + '">' +
+    'Ocultar terminados</button>';
+}
+
+/* ---------- piezas reutilizables ---------- */
+function etiquetasDe(s){
+  const et = [];
+  if (s.categoria === 'tercero') et.push('<span class="marca-tipo es-tercero">Tercero</span>');
+  else if (s.categoria === 'cleas') et.push('<span class="marca-tipo es-cleas">CLEAS</span>');
+  else if (s.categoria === 'asegurado') et.push('<span class="marca-tipo">Asegurado</span>');
+  if (s._u.nivel === 'listo') et.push('<span class="marca-tipo es-ok">Terminado</span>');
+  const venc = s.fechaVenc ? diasEntre(hoyISO(), s.fechaVenc) : null;
+  if (venc !== null && s._u.nivel !== 'listo'){
+    if (venc < 0) et.push('<span class="marca-tipo es-alerta">Venció hace ' + (-venc) + 'd</span>');
+    else if (venc === 0) et.push('<span class="marca-tipo es-alerta">Vence hoy</span>');
+    else if (venc <= 2) et.push('<span class="marca-tipo es-alerta">Vence en ' + venc + 'd</span>');
+    else if (venc <= 5) et.push('<span class="marca-tipo es-aviso">Vence en ' + venc + 'd</span>');
+  }
+  if (/alta/i.test(s.prioridad||'') && s._u.nivel !== 'listo')
+    et.push('<span class="marca-tipo es-aviso">Prioridad alta</span>');
+  return et.join('');
+}
+
+function relojDe(s){
+  const d = s._u.diasSinVer;
+  const pie = s._u.nuncaRevisado ? 'sin ver' : 'revisado';
+  if (d === null) return '<b class="chico">—</b><span>' + pie + '</span>';
+  if (d === 0)    return '<b class="chico">hoy</b><span>' + pie + '</span>';
+  return '<b>' + d + '</b><span>día' + (d===1?'':'s') + '</span>';
+}
+
+function pasosDe(s){
+  const pasos = [['informe','Informe'],['cierre','Cierre'],['facturado','Facturado']];
+  return '<div class="pasos">' + pasos.map(function(par, i){
+    const campo = par[0], hecho = esMarca(s[campo]);
+    const siguiente = pasos[i+1] && esMarca(s[pasos[i+1][0]]);
+    return '<button class="paso' + (hecho ? ' hecho' : '') + (hecho && siguiente ? ' enlazado' : '') + '"' +
+      ' data-paso="' + campo + '" title="' + (hecho ? 'Marcado' : 'Sin marcar') + ' · clic para cambiar">' +
+      '<span class="punto">' + icono('ok') + '</span><b>' + par[1] + '</b></button>';
+  }).join('') + '</div>';
+}
+
+function subtituloDe(s){
+  const veh = [s.vehiculo, s.dominio].filter(Boolean).join(' · ');
+  if (veh) return veh;
+  const asegurado = String(s.usuarioIng || '').replace(/^[\d.-]+\s*-\s*/, '').trim();
+  if (asegurado && !/rus online|cotizador/i.test(asegurado)) return asegurado;
+  return s.tipoReclamo || s.tarea || 'Sin datos del vehículo';
+}
+
+/* ---------- tarjetas ---------- */
+function pintarTarjetas(lista){
+  return '<div class="rejilla">' + lista.map(s => {
+    const sub = subtituloDe(s);
+    const datos = [];
+    if (s.fechaVenc)  datos.push({ i:'calendario', t:'Vence el ' + formatearFecha(s.fechaVenc), c: s._u.nivel==='critico' ? 'urge' : '' });
+    if (s.fechaDeriv) datos.push({ i:'reloj', t:'Derivado el ' + formatearFecha(s.fechaDeriv) });
+    if (s.telefono)   datos.push({ i:'tel', t:s.telefono });
+    if (s.tarea)      datos.push({ i:'carpeta', t:s.tarea });
+    return '<article class="tarjeta n-' + s._u.nivel + '" data-id="' + s.id + '" tabindex="0">' +
+      '<div class="t-cabecera">' +
+        '<div class="reloj">' + relojDe(s) + '</div>' +
+        '<div class="t-id">' +
+          '<div class="t-nro">' + esc(s.nro || '—') +
+            '<button data-copiar="' + esc(s.nro) + '" title="Copiar número">' + icono('copiar') + '</button></div>' +
+          '<div class="t-sub">' + esc(sub) + '</div>' +
+          '<div class="t-etiquetas">' + etiquetasDe(s) + '</div>' +
+        '</div>' +
+      '</div>' +
+      pasosDe(s) +
+      (datos.length ? '<div class="t-datos">' + datos.slice(0,3).map(d =>
+        '<div class="t-dato ' + (d.c||'') + '">' + icono(d.i) + '<span>' + esc(d.t) + '</span></div>').join('') + '</div>' : '') +
+      (s.notas ? '<div class="t-nota"><b>Pendiente:</b> ' + esc(s.notas) + '</div>'
+               : (s.observaciones ? '<div class="t-nota">' + esc(s.observaciones) + '</div>' : '')) +
+      '<div class="t-pie">' +
+        '<button class="btn btn-chico" data-revisar="' + s.id + '">' + icono('ok') + 'Lo revisé</button>' +
+        '<button class="btn btn-chico" data-abrir="' + s.id + '">Abrir' + icono('flecha') + '</button>' +
+      '</div></article>';
+  }).join('') + '</div>';
+}
+
+/* ---------- tabla ---------- */
+function pintarTabla(lista){
+  const filas = lista.map(s => {
+    const d = s._u.diasSinVer;
+    return '<tr class="n-' + s._u.nivel + '" data-id="' + s.id + '">' +
+      '<td class="col-nro"><span class="pastilla"></span>' + esc(s.nro || '—') + '</td>' +
+      '<td>' + esc([s.vehiculo, s.dominio].filter(Boolean).join(' · ') || '—') + '</td>' +
+      '<td>' + esc(ROTULO_CATEGORIA[s.categoria] || '—') + '</td>' +
+      '<td class="col-dias">' + (d === null ? '—' : d === 0 ? 'hoy' : d + ' d') + '</td>' +
+      '<td>' + (s.fechaVenc ? formatearFecha(s.fechaVenc) : '—') + '</td>' +
+      '<td>' + (s.fechaDeriv ? formatearFecha(s.fechaDeriv) : '—') + '</td>' +
+      '<td><div class="mini-pasos">' +
+        ['informe','cierre','facturado'].map(c => '<i class="' + (esMarca(s[c]) ? 'si' : '') + '"></i>').join('') +
+      '</div></td>' +
+      '<td>' + esc(s.observaciones || '').slice(0,60) + '</td></tr>';
+  }).join('');
+
+  return '<div class="caja-tabla"><table class="planilla"><thead><tr>' +
+    ['Nº siniestro','Vehículo','Tipo','Sin ver','Vence','Derivado','Avance','Observaciones']
+      .map(h => '<th>' + h + '</th>').join('') +
+    '</tr></thead><tbody>' + filas + '</tbody></table></div>';
+}
+
+/* ---------- vacío ---------- */
+function pintarVacio(){
+  const hayDatos = ESTADO.siniestros.length > 0;
+  return '<div class="vacio"><div class="vacio-icono">' + icono(hayDatos ? 'buscar' : 'subir') + '</div>' +
+    '<h3>' + (hayDatos ? 'No hay nada con ese filtro' : 'Todavía no cargaste ningún siniestro') + '</h3>' +
+    '<p>' + (hayDatos
+      ? 'Probá con otra búsqueda, o tocá <b>Todos</b> arriba para ver la lista completa.'
+      : 'Tocá <b>Actualizar lista</b> y soltá el archivo que bajás de RUS (<b>TareaAsignada.xls</b>) o tu planilla de seguimiento. El sistema se queda sólo con los que faltan.') + '</p>' +
+    (hayDatos ? '' : '<button class="btn btn-principal" onclick="document.getElementById(\'btnImportar\').click()">' +
+      icono('subir') + 'Importar una planilla</button>') + '</div>';
+}
+
+function render(){
+  pintarTablero();
+  const lista = listaVisible();
+  $('#contenido').innerHTML = !lista.length ? pintarVacio()
+    : (VISTA.modo === 'tabla' ? pintarTabla(lista) : pintarTarjetas(lista));
+  $('#vistaTarjetas').setAttribute('aria-pressed', VISTA.modo === 'tarjetas');
+  $('#vistaTabla').setAttribute('aria-pressed', VISTA.modo === 'tabla');
+  $('#limpiarBusqueda').classList.toggle('oculto', !VISTA.busqueda);
+
+  const m = ESTADO.meta || {};
+  $('#pieMarca').textContent = ESTADO.siniestros.length
+    ? ESTADO.siniestros.length + ' siniestros' + (m.ultimaImportacion
+        ? ' · actualizado ' + textoDias(diasDesde(m.ultimaImportacion)) : '')
+    : 'Río Uruguay Seguros';
+}
+
+/* ============================================================
+   PANEL DE DETALLE
+   ============================================================ */
+let idAbierto = null;
+const buscarPorId = id => ESTADO.siniestros.find(s => s.id === id);
+
+function marcarRevisado(id, silencioso){
+  const s = buscarPorId(id);
+  if (!s) return;
+  const ahora = new Date().toISOString();
+  s.ultimaRevision = ahora;
+  s.actualizado = ahora;
+  s.historial = s.historial || [];
+  s.historial.push({ f:ahora, t:'revision', d:'Lo revisaste' });
+  guardar();
+  if (!silencioso) avisar('Anotado: revisaste el ' + (s.nro || 'siniestro') + ' hoy', 'bien');
+  render();
+  if (idAbierto === id) abrirDetalle(id);
+}
+
+function alternarPaso(id, campo){
+  const s = buscarPorId(id);
+  if (!s) return;
+  const estaba = esMarca(s[campo]);
+  s[campo] = estaba ? '' : 'X';
+  if (campo === 'cierre' && !estaba && !s.fechaCierre) s.fechaCierre = hoyISO();
+  const ahora = new Date().toISOString();
+  s.actualizado = ahora;
+  s.ultimaRevision = ahora;
+  s.historial = s.historial || [];
+  s.historial.push({ f:ahora, t:'paso', d:(estaba ? 'Desmarcaste' : 'Marcaste') + ' ' + CAMPOS[campo].rotulo.toLowerCase() });
+  guardar();
+  render();
+  if (idAbierto === id) abrirDetalle(id);
+}
+
+function campoTexto(s, campo, tipo){
+  const c = CAMPOS[campo];
+  const valor = s[campo] || '';
+  const control = tipo === 'area'
+    ? '<textarea data-campo="' + campo + '">' + esc(valor) + '</textarea>'
+    : '<input type="' + (c.fecha ? 'date' : 'text') + '" data-campo="' + campo + '" value="' + esc(valor) + '">';
+  return '<div class="campo' + (tipo === 'area' ? ' ancho' : '') + '"><label>' + esc(c.rotulo) + '</label>' + control + '</div>';
+}
+
+function abrirDetalle(id){
+  const s = buscarPorId(id);
+  if (!s) return;
+  idAbierto = id;
+  s._u = calcularUrgencia(s);
+
+  $('#panelCabecera').innerHTML =
+    '<div style="flex:1;min-width:0">' +
+      '<div class="t-nro" style="font-size:22px">' + esc(s.nro || '—') +
+        '<button data-copiar="' + esc(s.nro) + '" title="Copiar número" style="opacity:1">' + icono('copiar') + '</button></div>' +
+      '<div class="t-etiquetas" style="margin-top:6px">' + etiquetasDe(s) + '</div>' +
+    '</div>' +
+    '<button class="btn btn-icono btn-fantasma" id="cerrarPanel" aria-label="Cerrar">' + icono('x') + '</button>';
+
+  const revisado = s._u.diasSinVer;
+  const rus = ['tarea','tipoReclamo','fechaVenc','plazo','prioridad','estadoRus','fechaAsign','fechaSin','emisor','duenio','usuarioIng']
+    .filter(c => s[c])
+    .map(c => '<div class="campo"><label>' + esc(CAMPOS[c].rotulo) + '</label>' +
+              '<div class="dato-fijo">' + esc(CAMPOS[c].fecha ? formatearFecha(s[c]) : s[c]) + '</div></div>').join('');
+
+  const historial = (s.historial || []).slice().reverse().slice(0, 14).map(h => {
+    const f = new Date(h.f);
+    const cuando = isNaN(f) ? '' : f.toLocaleDateString('es-AR', { day:'2-digit', month:'2-digit', year:'numeric' }) +
+                                   ' · ' + f.toLocaleTimeString('es-AR', { hour:'2-digit', minute:'2-digit' });
+    return '<div class="hito"><div class="hito-punto' + (h.t === 'revision' ? '' : ' gris') + '"></div>' +
+           '<div class="hito-txt"><b>' + esc(h.d) + '</b><time>' + esc(cuando) + '</time></div></div>';
+  }).join('') || '<p style="color:var(--texto-3);font-size:13px">Todavía no hay movimientos.</p>';
+
+  $('#panelCuerpo').innerHTML =
+    '<div class="bloque">' +
+      '<div class="aviso-caja ' + (s._u.nivel === 'critico' || s._u.nivel === 'atencion' ? 'ojo' : 'info') + '">' + icono('reloj') +
+        '<div><b>' + (s._u.nuncaRevisado
+            ? 'Nunca lo abriste' + (revisado ? ' · está cargado hace ' + revisado + ' días' : '')
+            : 'Lo revisaste ' + textoDias(revisado)) + '</b>' +
+        (s._u.motivos.length ? '<br>' + esc(s._u.motivos.join(' · ')) : '') + '</div></div>' +
+      pasosDe(s) +
+    '</div>' +
+
+    '<div class="bloque"><div class="bloque-tit">Datos del siniestro</div><div class="campos">' +
+      campoTexto(s,'dominio') + campoTexto(s,'vehiculo') +
+      '<div class="campo"><label>Asegurado o tercero</label><select data-campo="categoria">' +
+        ['','tercero','cleas','asegurado','otro'].map(v =>
+          '<option value="' + v + '"' + (s.categoria === v ? ' selected' : '') + '>' + ROTULO_CATEGORIA[v] + '</option>').join('') +
+      '</select></div>' +
+      campoTexto(s,'telefono') + campoTexto(s,'fechaDeriv') + campoTexto(s,'fechaCierre') +
+      campoTexto(s,'tramitador') + campoTexto(s,'km') + campoTexto(s,'fechaOfrec') +
+      campoTexto(s,'observaciones','area') +
+    '</div></div>' +
+
+    '<div class="bloque"><div class="bloque-tit">Mis notas</div><div class="campos">' +
+      '<div class="campo ancho"><label>Qué falta hacer / con quién hablé</label>' +
+      '<textarea data-campo="notas" placeholder="Ej: esperando presupuesto del taller, llamar el lunes…">' + esc(s.notas || '') + '</textarea></div>' +
+    '</div></div>' +
+
+    (rus ? '<div class="bloque"><div class="bloque-tit">Lo que trajo RUS</div><div class="campos">' + rus + '</div></div>' : '') +
+
+    '<div class="bloque"><div class="bloque-tit">Movimientos</div><div class="historial">' + historial + '</div></div>';
+
+  $('#panelPie').innerHTML =
+    '<button class="btn btn-principal" style="flex:1" data-revisar="' + s.id + '">' + icono('ok') + 'Marcar que lo revisé</button>' +
+    '<button class="btn btn-peligro btn-icono" data-eliminar="' + s.id + '" title="Eliminar">' + icono('tacho') + '</button>';
+
+  $('#panel').classList.add('abierto');
+  $('#veloPanel').classList.add('abierto');
+}
+
+function cerrarPanel(){
+  idAbierto = null;
+  $('#panel').classList.remove('abierto');
+  $('#veloPanel').classList.remove('abierto');
+}
+
+function guardarCampo(campo, valor){
+  const s = buscarPorId(idAbierto);
+  if (!s) return;
+  if (s[campo] === valor) return;
+  s[campo] = valor;
+  s.actualizado = new Date().toISOString();
+  guardar();
+  render();
+}
+
+/* ============================================================
+   FLUJOS — importar, exportar, ajustes
+   ============================================================ */
+let cruceActual = null, reconocidoActual = null, filasActuales = null, nombreActual = '';
+
+function abrirVelo(id){ $('#'+id).classList.add('abierto'); }
+function cerrarVelo(id){ $('#'+id).classList.remove('abierto'); }
+
+function abrirImportador(){
+  $('#pasoElegir').classList.remove('oculto');
+  $('#pasoResultado').classList.add('oculto');
+  $('#pasoResultado').innerHTML = '';
+  $('#pegado').value = '';
+  $('#btnUsarPegado').disabled = true;
+  $('#archivo').value = '';
+  $('#subImportar').textContent = 'Soltá el archivo que bajaste de RUS';
+  if (typeof pintarVinculo === 'function') pintarVinculo();
+  $('#pieImportar').innerHTML = '<button class="btn" data-cerrar="veloImportar">Cancelar</button>';
+  abrirVelo('veloImportar');
+}
+
+/** Elige la hoja con más chances de ser la buena. */
+function elegirHoja(hojas){
+  let mejor = null, mejorPuntaje = -1;
+  hojas.forEach(h => {
+    if (!h.filas || !h.filas.length) return;
+    const u = ubicarCabecera(h.filas);
+    const puntaje = u.puntaje * 1000 + h.filas.length;
+    if (puntaje > mejorPuntaje){ mejorPuntaje = puntaje; mejor = h; }
+  });
+  return mejor || hojas[0];
+}
+
+async function procesarEntrada(nombre, obtenerHojas){
+  try {
+    const leido = await obtenerHojas();
+    const hoja = elegirHoja(leido.hojas || []);
+    if (!hoja || !hoja.filas || hoja.filas.length < 2)
+      return avisar('El archivo no tiene filas para importar.', 'mal');
+
+    nombreActual = nombre;
+    filasActuales = hoja.filas;
+    reconocidoActual = reconocerColumnas(hoja.filas);
+
+    const tieneNro = Object.values(reconocidoActual.mapa).includes('nro');
+    if (!tieneNro) return mostrarMapeo(true);
+    mostrarResultado();
+  } catch(e){
+    avisar('No pude leer el archivo: ' + e.message, 'mal');
+  }
+}
+
+/* ---------- mapeo manual de columnas ---------- */
+function mostrarMapeo(obligatorio){
+  const muestra = filasActuales[reconocidoActual.indiceCabecera + 1] || [];
+  const opcionesPara = actual => ['<option value="">— ignorar —</option>'].concat(
+      Object.keys(CAMPOS).map(c =>
+        '<option value="' + c + '"' + (c === actual ? ' selected' : '') + '>' + esc(CAMPOS[c].rotulo) + '</option>')
+    ).join('');
+
+  $('#cuerpoMapeo').innerHTML =
+    (obligatorio ? '<div class="aviso-caja ojo">' + icono('alerta') +
+      '<div>No encontré la columna del <b>número de siniestro</b>. Marcala abajo para poder continuar.</div></div>' : '') +
+    '<table class="mapeo"><thead><tr><th>Columna del archivo</th><th>Ejemplo</th><th>Qué es</th></tr></thead><tbody>' +
+    reconocidoActual.cabecera.map((titulo, i) =>
+      '<tr><td><b>' + esc(titulo || '(sin título)') + '</b></td>' +
+      '<td class="muestra">' + esc(textoCelda(muestra[i])) + '</td>' +
+      '<td><select data-col="' + i + '">' + opcionesPara(reconocidoActual.mapa[i]) + '</select></td></tr>').join('') +
+    '</tbody></table>';
+  abrirVelo('veloMapeo');
+}
+
+/* ---------- pantalla de resultado ---------- */
+function mostrarResultado(){
+  const registros = armarRegistros(filasActuales, reconocidoActual);
+  cruceActual = cruzar(registros);
+  const c = cruceActual;
+
+  const pastillas = (arr, clase) => '<div class="lista-nros">' +
+    (arr.length ? arr.map(n => '<span class="nro-pastilla ' + clase + '">' + esc(n) + '</span>').join('')
+                : '<span style="color:var(--texto-3);font-size:13px">No hay ninguno.</span>') + '</div>';
+
+  const filasNuevas = c.nuevos.map((r, i) =>
+    '<label class="fila-previa"><input type="checkbox" data-nuevo="' + i + '" checked>' +
+    '<span class="fp-nro">' + esc(r.nro) + '</span>' +
+    '<span class="fp-txt">' + esc([r.vehiculo, r.dominio, r.tarea, r.tipoReclamo].filter(Boolean).join(' · ') || 'sin más datos') + '</span>' +
+    '</label>').join('') || '<p style="color:var(--texto-3);font-size:13px">Ninguno nuevo: ya tenías todos.</p>';
+
+  const rotuloCampo = k => CAMPOS[k] ? CAMPOS[k].rotulo : k;
+  const valorCampo = (k, v) => CAMPOS[k] && CAMPOS[k].fecha ? formatearFecha(v) : v;
+  const filasCambios = c.repetidos.filter(r => r.difs.length).map(r =>
+    '<div class="fila-previa"><span class="fp-nro">' + esc(r.nro) + '</span><span class="fp-txt">' +
+    esc(r.difs.slice(0,3).map(d => rotuloCampo(d.campo) + ': ' + valorCampo(d.campo, d.antes) + ' → ' + valorCampo(d.campo, d.ahora)).join('  |  ')) +
+    '</span></div>').join('') || '<p style="color:var(--texto-3);font-size:13px">Ningún dato cambió.</p>';
+
+  const conCambios = c.repetidos.filter(r => r.difs.length).length;
+  const perfil = reconocidoActual.perfil;
+
+  $('#subImportar').textContent = (perfil ? perfil.nombre : 'Archivo reconocido') + ' · ' + nombreActual;
+  $('#pasoElegir').classList.add('oculto');
+  $('#pasoResultado').classList.remove('oculto');
+  $('#pasoResultado').innerHTML =
+    '<div class="resumen">' +
+      '<div class="res-caja nuevos"><b>' + c.nuevos.length + '</b><span>faltaban</span></div>' +
+      '<div class="res-caja repes"><b>' + c.repetidos.length + '</b><span>ya estaban</span></div>' +
+      '<div class="res-caja dobles"><b>' + c.dobles.length + '</b><span>repetidos en el archivo</span></div>' +
+      '<div class="res-caja cambios"><b>' + conCambios + '</b><span>con cambios</span></div>' +
+    '</div>' +
+
+    '<div class="aviso-caja ' + (c.nuevos.length ? 'ok' : 'info') + '">' + icono(c.nuevos.length ? 'ok' : 'info') +
+      '<div>' + (c.nuevos.length
+        ? 'Se van a agregar <b>' + c.nuevos.length + ' siniestro' + (c.nuevos.length===1?'':'s') + ' nuevo' + (c.nuevos.length===1?'':'s') + '</b>. ' +
+          'Los otros <b>' + c.repetidos.length + '</b> ya los tenías, así que no se duplican.'
+        : 'Los <b>' + c.repetidos.length + '</b> siniestros del archivo ya estaban en tu lista. No hay nada nuevo para agregar.') +
+      (c.sinNro ? '<br><small>' + c.sinNro + ' fila' + (c.sinNro===1?'':'s') + ' sin número de siniestro que ignoré.</small>' : '') +
+      '</div></div>' +
+
+    '<div class="pestanas" role="tablist">' +
+      '<button class="pestana" role="tab" aria-selected="true"  data-hoja="nuevos">Faltaban (' + c.nuevos.length + ')</button>' +
+      '<button class="pestana" role="tab" aria-selected="false" data-hoja="repes">Ya estaban (' + c.repetidos.length + ')</button>' +
+      '<button class="pestana" role="tab" aria-selected="false" data-hoja="dobles">Repetidos en el archivo (' + c.dobles.length + ')</button>' +
+      '<button class="pestana" role="tab" aria-selected="false" data-hoja="cambios">Cambios (' + conCambios + ')</button>' +
+    '</div>' +
+
+    '<div data-panel="nuevos">' + filasNuevas + '</div>' +
+    '<div data-panel="repes" class="oculto">' +
+      '<p style="font-size:13px;color:var(--texto-2);margin-bottom:9px">Estos números ya figuran en tu lista:</p>' +
+      pastillas(c.repetidos.map(r => r.nro), 'repe') + '</div>' +
+    '<div data-panel="dobles" class="oculto">' +
+      (c.dobles.length
+        ? '<p style="font-size:13px;color:var(--texto-2);margin-bottom:9px">Ojo: estos números aparecen más de una vez <b>dentro del archivo</b>. Se toma sólo la primera aparición.</p>' +
+          c.dobles.map(d => '<div class="fila-previa"><span class="fp-nro">' + esc(d.nro) + '</span>' +
+            '<span class="fp-txt">filas ' + d.filas.join(', ') + '</span></div>').join('')
+        : '<p style="color:var(--texto-3);font-size:13px">Ninguno: el archivo no trae números repetidos.</p>') + '</div>' +
+    '<div data-panel="cambios" class="oculto">' + filasCambios + '</div>' +
+
+    '<label class="fila-previa" style="margin-top:14px">' +
+      '<input type="checkbox" id="chkActualizar" checked>' +
+      '<span class="fp-txt" style="color:var(--texto)">Actualizar los datos de los que ya estaban (vencimiento, estado, prioridad…)</span>' +
+    '</label>';
+
+  $('#pieImportar').innerHTML =
+    '<button class="btn izq" id="btnCopiarRepes">' + icono('copiar') + '<span class="texto-largo">Copiar los repetidos</span></button>' +
+    '<button class="btn" id="btnVolverElegir">Otro archivo</button>' +
+    '<button class="btn" id="btnAbrirMapeo">Revisar columnas</button>' +
+    '<button class="btn btn-principal" id="btnConfirmarImport">' +
+      (c.nuevos.length ? 'Agregar los ' + c.nuevos.length + ' que faltan' : 'Guardar cambios') + '</button>';
+}
+
+function confirmarImportacion(){
+  const elegidos = cruceActual.nuevos.filter((_, i) => {
+    const chk = $('[data-nuevo="' + i + '"]');
+    return !chk || chk.checked;
+  });
+  const cuantosRepes = cruceActual.repetidos.length;
+  const res = aplicarImportacion(cruceActual, {
+    nuevosElegidos: elegidos,
+    actualizarExistentes: $('#chkActualizar') ? $('#chkActualizar').checked : true,
+    nombreArchivo: nombreActual,
+    perfilId: reconocidoActual.perfil ? reconocidoActual.perfil.id : null
+  });
+  cerrarVelo('veloImportar');
+  render();
+
+  const partes = [];
+  if (res.agregados) partes.push('Agregué ' + res.agregados + ' siniestro' + (res.agregados===1?'':'s'));
+  if (res.actualizados) partes.push('actualicé ' + res.actualizados);
+  if (cuantosRepes) partes.push(cuantosRepes + ' ya estaban');
+  avisar(partes.join(' · ') || 'No hubo cambios', 'bien');
+  if (res.agregados) setTimeout(() => avisarDeshacer(), 500);
+}
+
+function avisarDeshacer(){
+  const caja = $('#avisos');
+  const el = document.createElement('div');
+  el.className = 'aviso';
+  el.innerHTML = '<span>¿Te equivocaste de archivo?</span>' +
+    '<button class="btn btn-chico" style="margin-left:4px">Deshacer</button>';
+  caja.appendChild(el);
+  el.querySelector('button').onclick = () => {
+    const n = deshacerUltimaImportacion();
+    el.remove(); render();
+    avisar('Saqué los ' + n + ' que había agregado', 'bien');
+  };
+  setTimeout(() => el.remove(), 12000);
+}
+
+/* ============================================================
+   EXPORTAR
+   ============================================================ */
+const COLUMNAS_PLANILLA = [
+  ['Fecha deriv','fechaDeriv'], ['Fecha cierre','fechaCierre'], ['Siniestro','nro'],
+  ['Dominio','dominio'], ['Vehiculo','vehiculo'], ['Aseg o terc','categoria'],
+  ['TELÉFONOS','telefono'], ['observaciones','observaciones'], ['INFORME','informe'],
+  ['CIERRE','cierre'], ['FACTURADO','facturado'], ['TRAMITADOR','tramitador'],
+  ['KM','km'], ['FECHA OFRECIMIENTO','fechaOfrec']
+];
+const COLUMNAS_EXTRA = [
+  ['Tarea RUS','tarea'], ['Tipo de reclamo','tipoReclamo'], ['Vence','fechaVenc'],
+  ['Prioridad','prioridad'], ['Estado RUS','estadoRus'], ['Fecha siniestro','fechaSin'],
+  ['Dueño','duenio'], ['Última revisión','_revision'], ['Mis notas','notas']
+];
+const SALIDA_CATEGORIA = { tercero:'3RO', cleas:'CLEAS', asegurado:'Asegurado', otro:'Otro', '':'' };
+
+function filasParaExportar(lista, conRus){
+  const cols = conRus ? COLUMNAS_PLANILLA.concat(COLUMNAS_EXTRA) : COLUMNAS_PLANILLA;
+  const filas = [cols.map(c => c[0])];
+  lista.forEach(s => {
+    filas.push(cols.map(par => {
+      const campo = par[1];
+      if (campo === 'categoria') return SALIDA_CATEGORIA[s.categoria] || '';
+      if (campo === '_revision') return s.ultimaRevision ? desdeISO(s.ultimaRevision.slice(0,10)) || '' : '';
+      if (campo === 'nro') return /^\d+$/.test(s.nro) ? Number(s.nro) : s.nro;
+      if (CAMPOS[campo] && CAMPOS[campo].fecha) return desdeISO(s[campo]) || '';
+      return s[campo] || '';
+    }));
+  });
+  return filas;
+}
+
+function descargar(nombre, datos, tipo){
+  const blob = new Blob([datos], { type: tipo });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = nombre;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 3000);
+}
+const selloFecha = () => hoyISO().split('-').reverse().join('-');
+
+async function exportarXLSX(lista, conRus, nombre){
+  if (!lista.length) return avisar('No hay nada para exportar con ese filtro.', 'mal');
+  try {
+    const bytes = await EscritorPlanillas.crearXLSX('Siniestros', filasParaExportar(lista, conRus));
+    descargar(nombre, bytes, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    avisar('Listo: ' + lista.length + ' siniestros exportados', 'bien');
+  } catch(e){ avisar('No pude armar el Excel: ' + e.message, 'mal'); }
+}
+
+function exportarCSV(lista, conRus, nombre){
+  if (!lista.length) return avisar('No hay nada para exportar con ese filtro.', 'mal');
+  const filas = filasParaExportar(lista, conRus).map(f => f.map(v => {
+    const t = v instanceof Date
+      ? formatearFecha(v.getFullYear() + '-' + dosDig(v.getMonth()+1) + '-' + dosDig(v.getDate()))
+      : String(v == null ? '' : v);
+    return /[";\n]/.test(t) ? '"' + t.replace(/"/g,'""') + '"' : t;
+  }).join(';'));
+  descargar(nombre, '\ufeff' + filas.join('\r\n'), 'text/csv;charset=utf-8');
+  avisar('Listo: ' + lista.length + ' siniestros exportados', 'bien');
+}
+
+function mostrarExportar(){
+  const lote = ESTADO.meta.ultimoLote;
+  const nuevos = lote && lote.id ? ESTADO.siniestros.filter(s => s.lote === lote.id) : [];
+  const visibles = listaVisible();
+
+  $('#cuerpoExportar').innerHTML =
+    '<div class="aviso-caja info">' + icono('info') +
+      '<div>La opción <b>Igual a tu planilla</b> respeta exactamente las 14 columnas de tu Excel, en el mismo orden. ' +
+      'Podés abrirla y copiar las filas directo al archivo original.</div></div>' +
+    (nuevos.length
+      ? '<div class="bloque"><div class="bloque-tit">Lo último que importaste</div>' +
+        '<button class="btn btn-principal" style="width:100%" data-exportar="nuevos">' + icono('bajar') +
+        'Sólo los ' + nuevos.length + ' nuevos (.xlsx)</button>' +
+        '<p style="font-size:12px;color:var(--texto-3);margin-top:7px">Para pegarlos debajo en tu planilla original sin tocar el resto.</p></div>'
+      : '') +
+    '<div class="bloque"><div class="bloque-tit">Planilla completa (' + ESTADO.siniestros.length + ')</div>' +
+      '<div style="display:flex;flex-direction:column;gap:7px">' +
+      '<button class="btn" data-exportar="todo">' + icono('bajar') + 'Igual a tu planilla (.xlsx)</button>' +
+      '<button class="btn" data-exportar="todo-rus">' + icono('bajar') + 'Con los datos de RUS agregados (.xlsx)</button>' +
+      '<button class="btn" data-exportar="todo-csv">' + icono('bajar') + 'CSV para Excel (.csv)</button>' +
+      '</div></div>' +
+    '<div class="bloque"><div class="bloque-tit">Lo que estás viendo (' + visibles.length + ')</div>' +
+      '<button class="btn" style="width:100%" data-exportar="filtrado">' + icono('bajar') + 'Exportar sólo estos (.xlsx)</button></div>' +
+    (HAY_VINCULO && ESTADO.meta.planillaVinculada
+      ? '<div class="bloque"><div class="bloque-tit">Planilla vinculada</div>' +
+        '<button class="btn" style="width:100%" id="btnGuardarVinculada">' + icono('carpeta') +
+        'Guardar en ' + esc(ESTADO.meta.planillaVinculada) + '</button>' +
+        '<p style="font-size:12px;color:var(--texto-3);margin-top:7px">Reemplaza el archivo original. Te pide confirmación antes.</p></div>'
+      : '') +
+    '<div class="bloque"><div class="bloque-tit">Respaldo</div>' +
+      '<div style="display:flex;flex-direction:column;gap:7px">' +
+      '<button class="btn" data-exportar="json">' + icono('bajar') + 'Bajar respaldo completo (.json)</button>' +
+      '<button class="btn" id="btnRestaurar">' + icono('subir') + 'Restaurar desde un respaldo</button>' +
+      '</div><p style="font-size:12px;color:var(--texto-3);margin-top:7px">El respaldo guarda también tus notas y las fechas de revisión.</p></div>';
+  abrirVelo('veloExportar');
+}
+
+/* ============================================================
+   AJUSTES
+   ============================================================ */
+function mostrarAjustes(){
+  const a = ESTADO.ajustes;
+  const dups = duplicadosGuardados();
+  $('#cuerpoAjustes').innerHTML =
+    '<div class="bloque"><div class="bloque-tit">Avisarme cuando haga que no lo miro</div><div class="campos">' +
+      '<div class="campo"><label>Siniestros comunes (días)</label>' +
+        '<input type="number" min="1" max="120" id="ajDiasGeneral" value="' + a.diasGeneral + '"></div>' +
+      '<div class="campo"><label>Terceros (días)</label>' +
+        '<input type="number" min="1" max="120" id="ajDiasTercero" value="' + a.diasTercero + '"></div>' +
+    '</div><p style="font-size:12px;color:var(--texto-3);margin-top:8px">' +
+      'Los de terceros se controlan más seguido porque son los que más se escapan.</p></div>' +
+    (dups.length
+      ? '<div class="bloque"><div class="bloque-tit">Repetidos en tu lista</div>' +
+        '<div class="aviso-caja ojo">' + icono('alerta') +
+        '<div>Hay <b>' + dups.length + '</b> número' + (dups.length===1?'':'s') + ' cargado' + (dups.length===1?'':'s') + ' más de una vez. ' +
+        'Buscalos y borrá el que sobre.</div></div>' +
+        '<div class="lista-nros">' + dups.map(d =>
+          '<span class="nro-pastilla doble">' + esc(d.nro) + ' x' + d.veces + '</span>').join('') + '</div></div>'
+      : '') +
+    '<div class="bloque"><div class="bloque-tit">Cómo funciona</div>' +
+      '<div class="aviso-caja info">' + icono('info') + '<div>' +
+      'Los datos quedan guardados <b>en este navegador</b>, en esta computadora. No se suben a ningún lado. ' +
+      'Si cambiás de máquina, usá <b>Exportar → respaldo</b> y después <b>Restaurar</b>.</div></div></div>';
+  abrirVelo('veloAjustes');
+}
+
+/* ============================================================
+   VÍNCULO CON EL ARCHIVO — el navegador se acuerda de tu planilla
+   Sólo anda en Chrome/Edge sobre https (o localhost). Si no está
+   disponible, todo sigue funcionando con importar y exportar.
+   ============================================================ */
+const HAY_VINCULO = typeof window !== 'undefined' && 'showOpenFilePicker' in window &&
+                    window.isSecureContext;
+
+function abrirBaseLocal(){
+  return new Promise((res, rej) => {
+    const p = indexedDB.open('radar-siniestros', 1);
+    p.onupgradeneeded = () => p.result.createObjectStore('enlaces');
+    p.onsuccess = () => res(p.result);
+    p.onerror = () => rej(p.error);
+  });
+}
+async function guardarEnlace(clave, valor){
+  const db = await abrirBaseLocal();
+  return new Promise((res, rej) => {
+    const tx = db.transaction('enlaces', 'readwrite');
+    tx.objectStore('enlaces').put(valor, clave);
+    tx.oncomplete = () => res(true);
+    tx.onerror = () => rej(tx.error);
+  });
+}
+async function leerEnlace(clave){
+  const db = await abrirBaseLocal();
+  return new Promise(res => {
+    const tx = db.transaction('enlaces', 'readonly');
+    const p = tx.objectStore('enlaces').get(clave);
+    p.onsuccess = () => res(p.result || null);
+    p.onerror = () => res(null);
+  });
+}
+async function pedirPermiso(enlace, conEscritura){
+  const opciones = { mode: conEscritura ? 'readwrite' : 'read' };
+  try {
+    if (await enlace.queryPermission(opciones) === 'granted') return true;
+    return await enlace.requestPermission(opciones) === 'granted';
+  } catch(e){ return false; }
+}
+
+async function vincularPlanilla(){
+  try {
+    const [enlace] = await window.showOpenFilePicker({
+      types: [{ description:'Planillas', accept:{
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet':['.xlsx'],
+        'application/vnd.ms-excel':['.xls'], 'text/csv':['.csv'] } }],
+      multiple: false
+    });
+    await guardarEnlace('planilla', enlace);
+    ESTADO.meta.planillaVinculada = enlace.name;
+    guardar();
+    avisar('Vinculé "' + enlace.name + '". Ahora alcanza con tocar Sincronizar.', 'bien');
+    abrirImportador();
+  } catch(e){ /* el usuario canceló */ }
+}
+
+async function sincronizarPlanilla(){
+  const enlace = await leerEnlace('planilla');
+  if (!enlace) return avisar('No hay ninguna planilla vinculada todavía.', 'mal');
+  if (!(await pedirPermiso(enlace, false)))
+    return avisar('El navegador no me dejó abrir el archivo.', 'mal');
+  try {
+    const archivo = await enlace.getFile();
+    const buffer = await archivo.arrayBuffer();
+    await procesarEntrada(archivo.name, () => LectorPlanillas.leerArchivo(archivo.name, buffer));
+  } catch(e){
+    avisar('No pude leer la planilla vinculada: ' + e.message, 'mal');
+  }
+}
+
+async function desvincularPlanilla(){
+  await guardarEnlace('planilla', null);
+  ESTADO.meta.planillaVinculada = '';
+  guardar();
+  abrirImportador();
+  avisar('Desvinculada', 'bien');
+}
+
+/** Escribe la planilla completa en el archivo vinculado (pide confirmación). */
+async function guardarEnPlanillaVinculada(){
+  const enlace = await leerEnlace('planilla');
+  if (!enlace) return avisar('Primero vinculá una planilla.', 'mal');
+  if (!confirm('Voy a REEMPLAZAR el contenido de "' + enlace.name + '" por los ' +
+               ESTADO.siniestros.length + ' siniestros de esta lista.\n\n' +
+               'El archivo queda con las 14 columnas de siempre, sin colores ni fórmulas.\n\n¿Seguimos?')) return;
+  if (!(await pedirPermiso(enlace, true)))
+    return avisar('El navegador no me dio permiso para escribir el archivo.', 'mal');
+  try {
+    const bytes = await EscritorPlanillas.crearXLSX('Siniestros', filasParaExportar(ESTADO.siniestros, false));
+    const flujo = await enlace.createWritable();
+    await flujo.write(bytes);
+    await flujo.close();
+    avisar('Guardado en "' + enlace.name + '"', 'bien');
+  } catch(e){
+    avisar('No pude escribir el archivo: ' + e.message, 'mal');
+  }
+}
+
+/** Pinta el recuadro del vínculo dentro del importador. */
+async function pintarVinculo(){
+  const caja = $('#cajaVinculo');
+  if (!caja) return;
+  if (!HAY_VINCULO){
+    caja.innerHTML = '';
+    return;
+  }
+  const enlace = await leerEnlace('planilla');
+  caja.innerHTML = enlace
+    ? '<div class="aviso-caja ok" style="align-items:center">' + icono('carpeta') +
+        '<div style="flex:1"><b>Planilla vinculada:</b> ' + esc(enlace.name) + '<br>' +
+        '<small>Tocá sincronizar y leo el archivo de nuevo, sin buscarlo.</small></div>' +
+        '<button class="btn btn-chico btn-principal" id="btnSincronizar">' + icono('refrescar') + 'Sincronizar</button>' +
+        '<button class="btn btn-chico btn-fantasma" id="btnDesvincular" title="Desvincular">' + icono('x') + '</button>' +
+      '</div>'
+    : '<div class="aviso-caja info" style="align-items:center">' + icono('carpeta') +
+        '<div style="flex:1">Podés <b>vincular tu planilla</b> una sola vez y después actualizarla con un clic, ' +
+        'sin tener que buscar el archivo cada vez.</div>' +
+        '<button class="btn btn-chico" id="btnVincular">Vincular</button>' +
+      '</div>';
+}
+
+/* ============================================================
+   EVENTOS y ARRANQUE
+   ============================================================ */
+function aplicarTema(){
+  const t = ESTADO.ajustes.tema;
+  if (t === 'auto') document.documentElement.removeAttribute('data-theme');
+  else document.documentElement.setAttribute('data-theme', t);
+  const oscuro = t === 'dark' ||
+    (t === 'auto' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+  $('#iconoTema').setAttribute('href', oscuro ? '#i-sol' : '#i-luna');
+}
+
+async function leerArchivoElegido(archivo){
+  if (!archivo) return;
+  const buffer = await archivo.arrayBuffer();
+  await procesarEntrada(archivo.name, () => LectorPlanillas.leerArchivo(archivo.name, buffer));
+}
+
+function idDesde(el){
+  const cont = el.closest('[data-id]');
+  return cont ? cont.dataset.id : idAbierto;
+}
+
+function conectar(){
+  /* --- barra --- */
+  $('#btnImportar').onclick = abrirImportador;
+  $('#btnExportar').onclick = mostrarExportar;
+  $('#btnAjustes').onclick  = mostrarAjustes;
+  $('#btnTema').onclick = () => {
+    const oscuroAhora = document.documentElement.getAttribute('data-theme') === 'dark' ||
+      (!document.documentElement.getAttribute('data-theme') && window.matchMedia('(prefers-color-scheme: dark)').matches);
+    ESTADO.ajustes.tema = oscuroAhora ? 'light' : 'dark';
+    guardar(); aplicarTema();
+  };
+
+  /* --- buscar, ordenar, vista --- */
+  let reloj = null;
+  $('#buscar').oninput = e => {
+    clearTimeout(reloj);
+    const v = e.target.value;
+    reloj = setTimeout(() => { VISTA.busqueda = v.trim(); render(); }, 160);
+  };
+  $('#limpiarBusqueda').onclick = () => { $('#buscar').value = ''; VISTA.busqueda = ''; render(); };
+  $('#orden').onchange = e => { VISTA.orden = e.target.value; render(); };
+  $('#vistaTarjetas').onclick = () => { VISTA.modo = 'tarjetas'; render(); };
+  $('#vistaTabla').onclick    = () => { VISTA.modo = 'tabla';    render(); };
+
+  /* --- importador --- */
+  const zona = $('#zonaSuelta');
+  zona.onclick = () => $('#archivo').click();
+  zona.onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); $('#archivo').click(); } };
+  ['dragenter','dragover'].forEach(ev => zona.addEventListener(ev, e => {
+    e.preventDefault(); zona.classList.add('encima');
+  }));
+  ['dragleave','drop'].forEach(ev => zona.addEventListener(ev, e => {
+    e.preventDefault(); zona.classList.remove('encima');
+  }));
+  zona.addEventListener('drop', e => {
+    const f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+    if (f) leerArchivoElegido(f);
+  });
+  $('#archivo').onchange = e => leerArchivoElegido(e.target.files[0]);
+  $('#pegado').oninput = e => { $('#btnUsarPegado').disabled = e.target.value.trim().length < 5; };
+  $('#btnUsarPegado').onclick = () => {
+    const texto = $('#pegado').value;
+    procesarEntrada('lo que pegaste', async () => ({ hojas: LectorPlanillas.leerDelimitado(texto) }));
+  };
+
+  $('#btnConfirmarMapeo').onclick = () => {
+    const mapa = {}, usados = new Set();
+    $$('#cuerpoMapeo select').forEach(sel => {
+      const campo = sel.value;
+      if (campo && !usados.has(campo)){ mapa[sel.dataset.col] = campo; usados.add(campo); }
+    });
+    if (!usados.has('nro')) return avisar('Marcá cuál es la columna del número de siniestro.', 'mal');
+    reconocidoActual.mapa = mapa;
+    reconocidoActual.perfil = null;
+    cerrarVelo('veloMapeo');
+    mostrarResultado();
+  };
+
+  /* --- ajustes --- */
+  $('#cuerpoAjustes').addEventListener('change', e => {
+    if (e.target.id === 'ajDiasGeneral') ESTADO.ajustes.diasGeneral = Math.max(1, +e.target.value || 12);
+    if (e.target.id === 'ajDiasTercero') ESTADO.ajustes.diasTercero = Math.max(1, +e.target.value || 7);
+    guardar(); render();
+  });
+  $('#btnBorrarTodo').onclick = () => {
+    if (!confirm('Esto borra TODOS los siniestros, notas y fechas de revisión de este navegador.\n\n¿Seguro? Bajá un respaldo antes si tenés dudas.')) return;
+    ESTADO.siniestros = []; ESTADO.meta = {};
+    guardar(); cerrarVelo('veloAjustes'); render();
+    avisar('Listo, quedó vacío', 'bien');
+  };
+
+  /* --- panel: guardar mientras se edita --- */
+  $('#panelCuerpo').addEventListener('change', e => {
+    if (e.target.dataset && e.target.dataset.campo) guardarCampo(e.target.dataset.campo, e.target.value);
+  });
+  $('#veloPanel').onclick = cerrarPanel;
+
+  /* --- clics generales --- */
+  document.addEventListener('click', async e => {
+    const t = e.target;
+
+    const cerrar = t.closest('[data-cerrar]');
+    if (cerrar) return cerrarVelo(cerrar.dataset.cerrar);
+    if (t.classList && t.classList.contains('velo')) return t.classList.remove('abierto');
+    if (t.closest('#cerrarPanel')) return cerrarPanel();
+
+    const filtro = t.closest('[data-filtro]');
+    if (filtro){ VISTA.filtro = filtro.dataset.filtro; render(); return; }
+
+    if (t.closest('#chipListos')){
+      ESTADO.ajustes.ocultarListos = !ESTADO.ajustes.ocultarListos;
+      guardar(); render(); return;
+    }
+
+    const copiar = t.closest('[data-copiar]');
+    if (copiar){
+      e.stopPropagation();
+      try { await navigator.clipboard.writeText(copiar.dataset.copiar); avisar('Número copiado', 'bien'); }
+      catch(err){ avisar('No pude copiar', 'mal'); }
+      return;
+    }
+
+    const revisar = t.closest('[data-revisar]');
+    if (revisar){ e.stopPropagation(); return marcarRevisado(revisar.dataset.revisar); }
+
+    const abrir = t.closest('[data-abrir]');
+    if (abrir){ e.stopPropagation(); return abrirDetalle(abrir.dataset.abrir); }
+
+    const paso = t.closest('[data-paso]');
+    if (paso){ e.stopPropagation(); return alternarPaso(idDesde(paso), paso.dataset.paso); }
+
+    const eliminar = t.closest('[data-eliminar]');
+    if (eliminar){
+      const s = buscarPorId(eliminar.dataset.eliminar);
+      if (s && confirm('¿Borrar el siniestro ' + s.nro + ' de la lista?')){
+        ESTADO.siniestros = ESTADO.siniestros.filter(x => x.id !== s.id);
+        guardar(); cerrarPanel(); render(); avisar('Borrado', 'bien');
+      }
+      return;
+    }
+
+    const hoja = t.closest('[data-hoja]');
+    if (hoja){
+      $$('#pasoResultado .pestana').forEach(p => p.setAttribute('aria-selected', p === hoja));
+      $$('#pasoResultado [data-panel]').forEach(p => p.classList.toggle('oculto', p.dataset.panel !== hoja.dataset.hoja));
+      return;
+    }
+
+    if (t.closest('#btnVolverElegir')) return abrirImportador();
+    if (t.closest('#btnAbrirMapeo'))   return mostrarMapeo(false);
+    if (t.closest('#btnConfirmarImport')) return confirmarImportacion();
+    if (t.closest('#btnCopiarRepes')){
+      const nros = cruceActual ? cruceActual.repetidos.map(r => r.nro).join('\n') : '';
+      try { await navigator.clipboard.writeText(nros); avisar('Copié los ' + cruceActual.repetidos.length + ' repetidos', 'bien'); }
+      catch(err){ avisar('No pude copiar', 'mal'); }
+      return;
+    }
+
+    const exportar = t.closest('[data-exportar]');
+    if (exportar){
+      const que = exportar.dataset.exportar;
+      const lote = ESTADO.meta.ultimoLote;
+      const sello = selloFecha();
+      if (que === 'nuevos')    return exportarXLSX(ESTADO.siniestros.filter(s => lote && s.lote === lote.id), false, 'siniestros-nuevos-' + sello + '.xlsx');
+      if (que === 'todo')      return exportarXLSX(ESTADO.siniestros, false, 'planilla-siniestros-' + sello + '.xlsx');
+      if (que === 'todo-rus')  return exportarXLSX(ESTADO.siniestros, true,  'planilla-siniestros-completa-' + sello + '.xlsx');
+      if (que === 'todo-csv')  return exportarCSV(ESTADO.siniestros, false, 'planilla-siniestros-' + sello + '.csv');
+      if (que === 'filtrado')  return exportarXLSX(listaVisible(), true, 'siniestros-filtrados-' + sello + '.xlsx');
+      if (que === 'json'){
+        descargar('respaldo-siniestros-' + sello + '.json', JSON.stringify(ESTADO, null, 1), 'application/json');
+        return avisar('Respaldo bajado', 'bien');
+      }
+    }
+    if (t.closest('#btnRestaurar')) return $('#restaurar').click();
+    if (t.closest('#btnVincular'))    return vincularPlanilla();
+    if (t.closest('#btnSincronizar')) return sincronizarPlanilla();
+    if (t.closest('#btnDesvincular')) return desvincularPlanilla();
+    if (t.closest('#btnGuardarVinculada')) return guardarEnPlanillaVinculada();
+
+    /* abrir el detalle al tocar una tarjeta o una fila */
+    const tarjeta = t.closest('.tarjeta[data-id], tr[data-id]');
+    if (tarjeta) return abrirDetalle(tarjeta.dataset.id);
+  });
+
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape'){
+      $$('.velo.abierto').forEach(v => v.classList.remove('abierto'));
+      cerrarPanel();
+    }
+    if (e.key === '/' && document.activeElement.tagName !== 'INPUT' && document.activeElement.tagName !== 'TEXTAREA'){
+      e.preventDefault(); $('#buscar').focus();
+    }
+  });
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Enter' && e.target.classList && e.target.classList.contains('tarjeta'))
+      abrirDetalle(e.target.dataset.id);
+  });
+
+  /* restaurar respaldo */
+  const entradaRestaurar = document.createElement('input');
+  entradaRestaurar.type = 'file'; entradaRestaurar.accept = '.json'; entradaRestaurar.id = 'restaurar';
+  entradaRestaurar.className = 'oculto';
+  document.body.appendChild(entradaRestaurar);
+  entradaRestaurar.onchange = async e => {
+    const f = e.target.files[0];
+    if (!f) return;
+    try {
+      const d = JSON.parse(await f.text());
+      if (!d || !Array.isArray(d.siniestros)) throw new Error('El archivo no es un respaldo válido');
+      if (ESTADO.siniestros.length &&
+          !confirm('Vas a reemplazar los ' + ESTADO.siniestros.length + ' siniestros que ya tenés por los ' + d.siniestros.length + ' del respaldo.\n\n¿Seguimos?')) return;
+      ESTADO = { version:1, siniestros:d.siniestros, ajustes:{...AJUSTES_POR_DEFECTO, ...(d.ajustes||{})}, meta:d.meta||{} };
+      guardar(); cerrarVelo('veloExportar'); render(); aplicarTema();
+      avisar('Restauré ' + d.siniestros.length + ' siniestros', 'bien');
+    } catch(err){ avisar('No pude leer el respaldo: ' + err.message, 'mal'); }
+    e.target.value = '';
+  };
+}
+
+/* ---------- arranque ---------- */
+cargar();
+aplicarTema();
+conectar();
+render();
+window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', aplicarTema);
+</script>
+</body>
+</html>
