@@ -667,7 +667,7 @@ table.mapeo .muestra{color:var(--texto-3);font-size:12px;overflow:hidden;text-ov
 <div class="velo" id="veloAjustes" role="dialog" aria-modal="true" aria-labelledby="tituloAjustes">
   <div class="modal">
     <div class="m-cabecera">
-      <div><h2 id="tituloAjustes">Ajustes</h2><p>Cuándo quiero que me avise</p></div>
+      <div><h2 id="tituloAjustes">Configuración</h2><p>Avisos, facturados y respaldo</p></div>
       <button class="btn btn-icono btn-fantasma" data-cerrar="veloAjustes" aria-label="Cerrar"><svg viewBox="0 0 24 24"><use href="#i-x"/></svg></button>
     </div>
     <div class="m-cuerpo" id="cuerpoAjustes"></div>
@@ -2058,7 +2058,8 @@ const FILTROS = {
                   return d !== null && d > (s.categoria === 'tercero' ? ESTADO.ajustes.diasTercero : ESTADO.ajustes.diasGeneral);
                 } },
   porfacturar:{ rotulo:'Por facturar',  pie:'informe hecho',       clase:'buena',   prueba:s => esMarca(s.informe) && !esMarca(s.facturado) },
-  terminados: { rotulo:'Terminados',    pie:'ya facturados',       prueba:s => estaTerminado(s) },
+  // Los facturados no van en el tablero: se llega a ellos desde Configuración.
+  terminados: { rotulo:'Facturados',    pie:'ya cobrados',         oculto:true, prueba:s => estaTerminado(s) },
   todos:      { rotulo:'Todos',         pie:'la lista entera',     oculto:true, prueba:() => true }
 };
 
@@ -2100,9 +2101,9 @@ function pintarTablero(){
       '<div class="ficha-pie">' + f.pie + '</div></button>';
   }).join('');
 
-  $('#filtros').innerHTML =
-    '<button class="chip" data-filtro="todos" aria-pressed="' + (VISTA.filtro === 'todos') + '">' +
-    'Ver todos <span class="cuenta">' + ESTADO.siniestros.length + '</span></button>';
+  $('#filtros').innerHTML = VISTA.filtro === 'terminados'
+    ? '<button class="chip" data-filtro="activos" aria-pressed="false">Volver a la lista</button>'
+    : '';
 }
 
 /* ---------- piezas reutilizables ---------- */
@@ -2210,9 +2211,11 @@ function pintarTabla(lista){
 function pintarVacio(){
   const hayDatos = ESTADO.siniestros.length > 0;
   return '<div class="vacio"><div class="vacio-icono">' + icono(hayDatos ? 'buscar' : 'subir') + '</div>' +
-    '<h3>' + (hayDatos ? 'No hay nada con ese filtro' : 'Todavía no cargaste ningún siniestro') + '</h3>' +
+    '<h3>' + (!hayDatos ? 'Todavía no cargaste ningún siniestro'
+      : VISTA.filtro === 'terminados' ? 'Todavía no facturaste ninguno'
+      : 'No hay nada con ese filtro') + '</h3>' +
     '<p>' + (hayDatos
-      ? 'Los ya facturados no aparecen acá: están en <b>Terminados</b>. Si buscás un número puntual, el buscador mira la lista entera.'
+      ? 'Los facturados no aparecen acá: están en <b>Configuración → Facturados</b>. Si buscás un número puntual, el buscador igual mira la lista entera.'
       : 'Tocá <b>Actualizar lista</b> y soltá el archivo que bajás de RUS (<b>TareaAsignada.xls</b>) o tu planilla de seguimiento. El sistema se queda sólo con los que faltan.') + '</p>' +
     (hayDatos ? '' : '<button class="btn btn-principal" onclick="document.getElementById(\'btnImportar\').click()">' +
       icono('subir') + 'Importar una planilla</button>') + '</div>';
@@ -2221,8 +2224,13 @@ function pintarVacio(){
 function render(){
   pintarTablero();
   const lista = listaVisible();
-  $('#contenido').innerHTML = !lista.length ? pintarVacio()
-    : (VISTA.modo === 'tabla' ? pintarTabla(lista) : pintarTarjetas(lista));
+  const cartel = VISTA.filtro === 'terminados' && !VISTA.busqueda
+    ? '<div class="aviso-caja info" style="margin-bottom:14px">' + icono('info') +
+      '<div><b>Estás viendo los facturados.</b> Estos no aparecen en la lista de todos los días. ' +
+      'Si marcaste alguno sin querer, destildá <b>Facturado</b> y vuelve solo a la lista.</div></div>'
+    : '';
+  $('#contenido').innerHTML = cartel + (!lista.length ? pintarVacio()
+    : (VISTA.modo === 'tabla' ? pintarTabla(lista) : pintarTarjetas(lista)));
   $('#vistaTarjetas').setAttribute('aria-pressed', VISTA.modo === 'tarjetas');
   $('#vistaTabla').setAttribute('aria-pressed', VISTA.modo === 'tabla');
   $('#limpiarBusqueda').classList.toggle('oculto', !VISTA.busqueda);
@@ -2270,9 +2278,13 @@ function alternarPaso(id, campo){
   render();
   if (idAbierto === id) abrirDetalle(id);
 
-  // Si al marcarlo quedó terminado, desaparece de la vista: conviene decirlo.
-  if (!estabaTerminado && estaTerminado(s) && VISTA.filtro !== 'terminados' && !VISTA.busqueda)
-    avisar('Terminado. Lo saqué de la lista — está en "Terminados".', 'bien');
+  // Al facturarlo se va de la lista, y al destildarlo vuelve: hay que decirlo
+  // en los dos sentidos, si no parece que se perdió.
+  const ahoraTerminado = estaTerminado(s);
+  if (!estabaTerminado && ahoraTerminado && !VISTA.busqueda)
+    avisar('Facturado. Salió de la lista — lo tenés en Configuración → Facturados.', 'bien');
+  else if (estabaTerminado && !ahoraTerminado)
+    avisar('Listo, el ' + (s.nro || 'siniestro') + ' volvió a la lista.', 'bien');
 }
 
 function campoTexto(s, campo, tipo){
@@ -2677,6 +2689,13 @@ function mostrarAjustes(){
         '<div class="lista-nros">' + dups.map(d =>
           '<span class="nro-pastilla doble">' + esc(d.nro) + ' x' + d.veces + '</span>').join('') + '</div></div>'
       : '') +
+    '<div class="bloque"><div class="bloque-tit">Facturados</div>' +
+      '<button class="btn" style="width:100%" id="btnVerFacturados">' + icono('carpeta') +
+      'Ver los ' + ESTADO.siniestros.filter(estaTerminado).length + ' facturados</button>' +
+      '<p style="font-size:12px;color:var(--texto-3);margin-top:7px">' +
+      'Apenas marcás Facturado, el siniestro sale de la lista y queda guardado acá. ' +
+      'Si alguno lo marcaste sin querer, entrá, destildá <b>Facturado</b> y vuelve solo. ' +
+      'No se borra nunca nada.</p></div>' +
     '<div class="bloque"><div class="bloque-tit">Cómo funciona</div>' +
       '<div class="aviso-caja info">' + icono('info') + '<div>' +
       'Los datos quedan guardados <b>en este navegador</b>, en esta computadora. No se suben a ningún lado. ' +
@@ -2895,7 +2914,12 @@ function conectar(){
     guardar(); render();
   });
   $('#btnBorrarTodo').onclick = () => {
-    if (!confirm('Esto borra TODOS los siniestros, notas y fechas de revisión de este navegador.\n\n¿Seguro? Bajá un respaldo antes si tenés dudas.')) return;
+    const cuantos = ESTADO.siniestros.length;
+    if (!confirm('Esto borra los ' + cuantos + ' siniestros, con las notas y las fechas de revisión.\n\n' +
+                 'No es lo que hay que usar para sacar uno de la lista: para eso alcanza con marcarlo Facturado.\n\n' +
+                 '¿Seguimos?')) return;
+    if (!confirm('Última confirmación.\n\nSe borran ' + cuantos + ' siniestros y no se pueden recuperar, ' +
+                 'salvo que tengas un respaldo .json bajado.\n\n¿Borro todo igual?')) return;
     ESTADO.siniestros = []; ESTADO.meta = {};
     guardar(); cerrarVelo('veloAjustes'); render();
     avisar('Listo, quedó vacío', 'bien');
@@ -2977,6 +3001,12 @@ function conectar(){
         descargar('respaldo-siniestros-' + sello + '.json', JSON.stringify(ESTADO, null, 1), 'application/json');
         return avisar('Respaldo bajado', 'bien');
       }
+    }
+    if (t.closest('#btnVerFacturados')){
+      cerrarVelo('veloAjustes');
+      VISTA.filtro = 'terminados'; VISTA.busqueda = ''; $('#buscar').value = '';
+      render(); window.scrollTo(0, 0);
+      return;
     }
     if (t.closest('#btnRestaurar')) return $('#restaurar').click();
     if (t.closest('#btnVincular'))    return vincularPlanilla();

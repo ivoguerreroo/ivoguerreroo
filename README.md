@@ -17,7 +17,7 @@ Vercel, abrir desde el celular o incluso abrir haciendo doble clic.
 | No se sabe hace cuánto que no se mira un siniestro | Cada tarjeta tiene un contador grande de días y un botón **Lo revisé** |
 | Al importar la planilla de RUS se cargan siniestros repetidos | Antes de agregar nada, muestra cuántos **faltaban**, cuántos **ya estaban** y cuáles son |
 | El Excel tiene tantas columnas que uno se pierde | La tarjeta muestra sólo lo que hace falta para decidir; el resto está en el detalle |
-| Los siniestros ya terminados tapan a los que faltan | Apenas se marca **Facturado**, el siniestro sale solo de la lista |
+| Los siniestros ya terminados tapan a los que faltan | Apenas se marca **Facturado**, el siniestro desaparece de la página |
 | Hay que volver a cargar todo a mano en el Excel original | Exporta un `.xlsx` con **las mismas 14 columnas**, en el mismo orden |
 
 ---
@@ -54,12 +54,18 @@ Vercel, abrir desde el celular o incluso abrir haciendo doble clic.
 - **Terceros** — los que más se escapan.
 - **Sin revisar** — hace más días de los que configuraste.
 - **Por facturar** — informe hecho y falta facturar. Plata en la calle.
-- **Terminados** — los que ya se facturaron.
 
 ### Cuándo desaparece un siniestro
 
-Cuando se marca **Facturado**. Ése es el final del circuito: se va solo de
-*En curso* y queda guardado en *Terminados*.
+Cuando se marca **Facturado**. Ése es el final del circuito: la tarjeta se va
+de la página en el acto y no vuelve a aparecer en el día a día.
+
+**Dónde quedan.** En **Configuración → Ver los N facturados**. No se borra
+nunca nada. Si marcaste uno sin querer, entrás ahí, destildás *Facturado* y
+vuelve solo a la lista.
+
+También los encontrás **buscando por número**: el buscador ignora los filtros
+y mira la lista entera, facturados incluidos.
 
 El **cierre solo no alcanza**. Si está cerrado pero todavía no se facturó,
 sigue a la vista, porque es plata por cobrar. (En la planilla original hay 79
