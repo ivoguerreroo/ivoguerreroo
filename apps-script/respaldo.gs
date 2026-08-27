@@ -23,7 +23,7 @@ var DESTINO = 'walterguerreroseguros@gmail.com';
 
 // Cambiala por cualquier frase inventada. Tiene que ser la misma que cargues
 // en la página. Evita que un desconocido use la URL para mandarte mails.
-var CLAVE = 'cambiame-por-una-frase-cualquiera';
+var CLAVE = 'siniestro-peritaje-uruguay-rio-8037';
 
 function doPost(e) {
   try {
