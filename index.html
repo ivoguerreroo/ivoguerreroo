@@ -1675,7 +1675,7 @@ const SINONIMOS = {
   tipoLesion:['tipolesion','lesion']
 };
 
-const AJUSTES_POR_DEFECTO = { diasGeneral:12, diasTercero:7, ocultarListos:false, tema:'auto' };
+const AJUSTES_POR_DEFECTO = { diasGeneral:12, diasTercero:7, tema:'auto' };
 
 let ESTADO = { version:1, siniestros:[], ajustes:{...AJUSTES_POR_DEFECTO}, meta:{} };
 
@@ -1772,6 +1772,14 @@ function deducirCategoria(valor, tipoReclamo, tarea){
 const ROTULO_CATEGORIA = { tercero:'Tercero', cleas:'CLEAS', asegurado:'Asegurado', otro:'Otro', '':'Sin definir' };
 
 /* ---------- marcas X ---------- */
+/** Un siniestro está terminado cuando ya se facturó: ése es el final del
+ *  circuito. El cierre solo no alcanza — si está cerrado pero sin facturar,
+ *  todavía hay plata por cobrar y tiene que seguir a la vista. */
+function estaTerminado(s){
+  if (esMarca(s.facturado)) return true;
+  return /cerrad|finaliz|anulad|rechazad/i.test(String(s.estadoRus || ''));
+}
+
 const esMarca = v => {
   const s = String(v == null ? '' : v).trim().toLowerCase();
   return !!s && s !== '0' && s !== 'no' && s !== '-' && s !== 'false';
@@ -1783,8 +1791,8 @@ function calcularUrgencia(s){
   const esTercero = s.categoria === 'tercero';
   const motivos = [];
 
-  if (esMarca(s.facturado) && esMarca(s.cierre))
-    return { nivel:'listo', puntaje:-1, motivos:['Ciclo completo'],
+  if (estaTerminado(s))
+    return { nivel:'listo', puntaje:-1, motivos:['Terminado'],
              diasSinVer:diasDesde(s.ultimaRevision || s.creado), nuncaRevisado:!s.ultimaRevision };
 
   let p = 0;
@@ -2035,21 +2043,23 @@ function avisar(texto, tipo){
   el.innerHTML = (tipo === 'bien' ? icono('ok') : tipo === 'mal' ? icono('alerta') : icono('info')) +
                  '<span>' + esc(texto) + '</span>';
   caja.appendChild(el);
+  while (caja.children.length > 3) caja.firstElementChild.remove();
   setTimeout(() => { el.style.opacity = '0'; el.style.transition = 'opacity .3s'; setTimeout(() => el.remove(), 320); }, 4200);
 }
 
 /* ---------- filtros ---------- */
 const FILTROS = {
-  activos:    { rotulo:'En curso',      pie:'sin facturar',        prueba:s => !(esMarca(s.facturado) && esMarca(s.cierre)) },
+  activos:    { rotulo:'En curso',      pie:'falta facturar',      prueba:s => !estaTerminado(s) },
   urgentes:   { rotulo:'Urgentes',      pie:'atención ya',         clase:'critica', prueba:s => s._u.nivel === 'critico' },
-  terceros:   { rotulo:'Terceros',      pie:'en curso',            clase:'tercera', prueba:s => s.categoria === 'tercero' && !(esMarca(s.facturado) && esMarca(s.cierre)) },
+  terceros:   { rotulo:'Terceros',      pie:'en curso',            clase:'tercera', prueba:s => s.categoria === 'tercero' && !estaTerminado(s) },
   sinver:     { rotulo:'Sin revisar',   pie:'hace mucho',          clase:'avisa',   prueba:s => {
-                  if (esMarca(s.facturado) && esMarca(s.cierre)) return false;
+                  if (estaTerminado(s)) return false;
                   const d = s._u.diasSinVer;
                   return d !== null && d > (s.categoria === 'tercero' ? ESTADO.ajustes.diasTercero : ESTADO.ajustes.diasGeneral);
                 } },
-  porfacturar:{ rotulo:'Por facturar',  pie:'informe y cierre ok', clase:'buena',   prueba:s => esMarca(s.informe) && esMarca(s.cierre) && !esMarca(s.facturado) },
-  todos:      { rotulo:'Todos',         pie:'incluye terminados',  prueba:() => true }
+  porfacturar:{ rotulo:'Por facturar',  pie:'informe hecho',       clase:'buena',   prueba:s => esMarca(s.informe) && !esMarca(s.facturado) },
+  terminados: { rotulo:'Terminados',    pie:'ya facturados',       prueba:s => estaTerminado(s) },
+  todos:      { rotulo:'Todos',         pie:'la lista entera',     oculto:true, prueba:() => true }
 };
 
 function coincideBusqueda(s, q){
@@ -2062,10 +2072,10 @@ function coincideBusqueda(s, q){
 
 function listaVisible(){
   ESTADO.siniestros.forEach(s => { s._u = calcularUrgencia(s); });
-  const f = FILTROS[VISTA.filtro] || FILTROS.activos;
+  // Cuando hay algo escrito en el buscador, se busca sobre TODO: si busca un
+  // número puntual lo tiene que encontrar aunque ya esté facturado.
+  const f = VISTA.busqueda ? FILTROS.todos : (FILTROS[VISTA.filtro] || FILTROS.activos);
   let lista = ESTADO.siniestros.filter(s => f.prueba(s) && coincideBusqueda(s, VISTA.busqueda));
-  if (ESTADO.ajustes.ocultarListos && VISTA.filtro !== 'todos')
-    lista = lista.filter(s => s._u.nivel !== 'listo');
 
   const ordenadores = {
     urgencia:   (a,b) => b._u.puntaje - a._u.puntaje || (a.nro > b.nro ? 1 : -1),
@@ -2081,7 +2091,7 @@ function listaVisible(){
 /* ---------- tablero ---------- */
 function pintarTablero(){
   ESTADO.siniestros.forEach(s => { s._u = calcularUrgencia(s); });
-  $('#tablero').innerHTML = Object.keys(FILTROS).map(clave => {
+  $('#tablero').innerHTML = Object.keys(FILTROS).filter(k => !FILTROS[k].oculto).map(clave => {
     const f = FILTROS[clave];
     const n = ESTADO.siniestros.filter(f.prueba).length;
     return '<button class="ficha ' + (f.clase||'') + '" data-filtro="' + clave + '" aria-pressed="' + (VISTA.filtro===clave) + '">' +
@@ -2091,8 +2101,8 @@ function pintarTablero(){
   }).join('');
 
   $('#filtros').innerHTML =
-    '<button class="chip" id="chipListos" aria-pressed="' + !!ESTADO.ajustes.ocultarListos + '">' +
-    'Ocultar terminados</button>';
+    '<button class="chip" data-filtro="todos" aria-pressed="' + (VISTA.filtro === 'todos') + '">' +
+    'Ver todos <span class="cuenta">' + ESTADO.siniestros.length + '</span></button>';
 }
 
 /* ---------- piezas reutilizables ---------- */
@@ -2138,7 +2148,8 @@ function subtituloDe(s){
   if (veh) return veh;
   const asegurado = String(s.usuarioIng || '').replace(/^[\d.-]+\s*-\s*/, '').trim();
   if (asegurado && !/rus online|cotizador/i.test(asegurado)) return asegurado;
-  return s.tipoReclamo || s.tarea || 'Sin datos del vehículo';
+  const reclamo = String(s.tipoReclamo || '').replace(/^\[|\]$/g, '').trim();
+  return reclamo || s.tarea || 'Sin datos del vehículo';
 }
 
 /* ---------- tarjetas ---------- */
@@ -2201,7 +2212,7 @@ function pintarVacio(){
   return '<div class="vacio"><div class="vacio-icono">' + icono(hayDatos ? 'buscar' : 'subir') + '</div>' +
     '<h3>' + (hayDatos ? 'No hay nada con ese filtro' : 'Todavía no cargaste ningún siniestro') + '</h3>' +
     '<p>' + (hayDatos
-      ? 'Probá con otra búsqueda, o tocá <b>Todos</b> arriba para ver la lista completa.'
+      ? 'Los ya facturados no aparecen acá: están en <b>Terminados</b>. Si buscás un número puntual, el buscador mira la lista entera.'
       : 'Tocá <b>Actualizar lista</b> y soltá el archivo que bajás de RUS (<b>TareaAsignada.xls</b>) o tu planilla de seguimiento. El sistema se queda sólo con los que faltan.') + '</p>' +
     (hayDatos ? '' : '<button class="btn btn-principal" onclick="document.getElementById(\'btnImportar\').click()">' +
       icono('subir') + 'Importar una planilla</button>') + '</div>';
@@ -2246,6 +2257,7 @@ function marcarRevisado(id, silencioso){
 function alternarPaso(id, campo){
   const s = buscarPorId(id);
   if (!s) return;
+  const estabaTerminado = estaTerminado(s);
   const estaba = esMarca(s[campo]);
   s[campo] = estaba ? '' : 'X';
   if (campo === 'cierre' && !estaba && !s.fechaCierre) s.fechaCierre = hoyISO();
@@ -2257,6 +2269,10 @@ function alternarPaso(id, campo){
   guardar();
   render();
   if (idAbierto === id) abrirDetalle(id);
+
+  // Si al marcarlo quedó terminado, desaparece de la vista: conviene decirlo.
+  if (!estabaTerminado && estaTerminado(s) && VISTA.filtro !== 'terminados' && !VISTA.busqueda)
+    avisar('Terminado. Lo saqué de la lista — está en "Terminados".', 'bien');
 }
 
 function campoTexto(s, campo, tipo){
@@ -2529,6 +2545,7 @@ function avisarDeshacer(){
   el.innerHTML = '<span>¿Te equivocaste de archivo?</span>' +
     '<button class="btn btn-chico" style="margin-left:4px">Deshacer</button>';
   caja.appendChild(el);
+  while (caja.children.length > 3) caja.firstElementChild.remove();
   el.querySelector('button').onclick = () => {
     const n = deshacerUltimaImportacion();
     el.remove(); render();
@@ -2901,11 +2918,6 @@ function conectar(){
 
     const filtro = t.closest('[data-filtro]');
     if (filtro){ VISTA.filtro = filtro.dataset.filtro; render(); return; }
-
-    if (t.closest('#chipListos')){
-      ESTADO.ajustes.ocultarListos = !ESTADO.ajustes.ocultarListos;
-      guardar(); render(); return;
-    }
 
     const copiar = t.closest('[data-copiar]');
     if (copiar){

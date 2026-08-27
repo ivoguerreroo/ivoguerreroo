@@ -17,6 +17,7 @@ Vercel, abrir desde el celular o incluso abrir haciendo doble clic.
 | No se sabe hace cuánto que no se mira un siniestro | Cada tarjeta tiene un contador grande de días y un botón **Lo revisé** |
 | Al importar la planilla de RUS se cargan siniestros repetidos | Antes de agregar nada, muestra cuántos **faltaban**, cuántos **ya estaban** y cuáles son |
 | El Excel tiene tantas columnas que uno se pierde | La tarjeta muestra sólo lo que hace falta para decidir; el resto está en el detalle |
+| Los siniestros ya terminados tapan a los que faltan | Apenas se marca **Facturado**, el siniestro sale solo de la lista |
 | Hay que volver a cargar todo a mano en el Excel original | Exporta un `.xlsx` con **las mismas 14 columnas**, en el mismo orden |
 
 ---
@@ -48,12 +49,29 @@ Vercel, abrir desde el celular o incluso abrir haciendo doble clic.
 
 **El tablero de arriba son los filtros.** Tocá cualquiera para filtrar:
 
-- **En curso** — todo lo que todavía no está facturado.
+- **En curso** — lo que todavía no se facturó. Es lo que se ve al entrar.
 - **Urgentes** — vencidos, por vencer o abandonados hace rato.
 - **Terceros** — los que más se escapan.
 - **Sin revisar** — hace más días de los que configuraste.
-- **Por facturar** — informe y cierre listos, falta facturar. Plata en la calle.
-- **Todos** — incluye los terminados.
+- **Por facturar** — informe hecho y falta facturar. Plata en la calle.
+- **Terminados** — los que ya se facturaron.
+
+### Cuándo desaparece un siniestro
+
+Cuando se marca **Facturado**. Ése es el final del circuito: se va solo de
+*En curso* y queda guardado en *Terminados*.
+
+El **cierre solo no alcanza**. Si está cerrado pero todavía no se facturó,
+sigue a la vista, porque es plata por cobrar. (En la planilla original hay 79
+siniestros facturados sin el cierre marcado y sólo 4 al revés, así que el que
+manda es *Facturado*.)
+
+Si en el export de RUS el estado dice *cerrada*, *finalizada* o *anulada*,
+también se considera terminado.
+
+Buscar por número **encuentra todo**, esté terminado o no: el buscador ignora
+el filtro. Y el chip **Ver todos**, al lado del buscador, muestra la lista
+entera.
 
 **Cada tarjeta** trae el número de siniestro (con botón para copiarlo), el
 vehículo, el contador de días sin revisar, y los tres pasos —**Informe →
