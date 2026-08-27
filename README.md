@@ -18,7 +18,7 @@ Vercel, abrir desde el celular o incluso abrir haciendo doble clic.
 | Al importar la planilla de RUS se cargan siniestros repetidos | Antes de agregar nada, muestra cuántos **faltaban**, cuántos **ya estaban** y cuáles son |
 | El Excel tiene tantas columnas que uno se pierde | La tarjeta muestra sólo lo que hace falta para decidir; el resto está en el detalle |
 | Los siniestros ya terminados tapan a los que faltan | Apenas se marca **Facturado**, el siniestro desaparece de la página |
-| Hay que volver a cargar todo a mano en el Excel original | Exporta un `.xlsx` con **las mismas 14 columnas**, en el mismo orden |
+| Se pierde el Excel manual, con todo el trabajo de tenerlo al día | La app reemplaza esa planilla; no hace falta mantenerla más |
 
 ---
 
@@ -39,9 +39,9 @@ Vercel, abrir desde el celular o incluso abrir haciendo doble clic.
    archivo, hay un botón **Deshacer** por unos segundos.
 5. **Trabajar la lista.** Tocá **Lo revisé** cada vez que entrás a un siniestro:
    ése es el dato que después te dice cuáles se están quedando atrás.
-6. **Exportar** cuando quieras pasarlo al Excel original:
-   - *Sólo los nuevos* → para pegarlos debajo, sin tocar el resto.
-   - *Igual a tu planilla* → la planilla completa con las mismas columnas.
+6. **Exportar** cuando necesites un `.xlsx` o `.csv` para imprimir, mandar por
+   mail o archivar. La app es la que lleva la lista de ahora en más — no hace
+   falta mantener un Excel aparte ni copiar nada de vuelta a ningún lado.
 
 ---
 
@@ -68,7 +68,7 @@ También los encontrás **buscando por número**: el buscador ignora los filtros
 y mira la lista entera, facturados incluidos.
 
 El **cierre solo no alcanza**. Si está cerrado pero todavía no se facturó,
-sigue a la vista, porque es plata por cobrar. (En la planilla original hay 79
+sigue a la vista, porque es plata por cobrar. (En los datos reales había 79
 siniestros facturados sin el cierre marcado y sólo 4 al revés, así que el que
 manda es *Facturado*.)
 
@@ -88,17 +88,15 @@ taller el lunes") y se ve el historial de todo lo que se fue haciendo.
 
 ---
 
-## Vincular la planilla
+## Vincular el archivo de RUS
 
-En Chrome o Edge se puede **vincular** el Excel una sola vez: después alcanza
-con tocar **Sincronizar** y lo vuelve a leer sin buscar el archivo. También
-puede escribir de vuelta en ese mismo archivo, avisando antes.
+En Chrome o Edge se puede **vincular** el archivo que bajás de RUS
+(`TareaAsignada.xls`) una sola vez: después alcanza con tocar **Sincronizar**
+y lo vuelve a leer sin que lo tengas que buscar cada semana.
 
 Un detalle importante: el navegador **no puede vigilar un archivo solo**. Por
 seguridad, siempre hace falta un clic. "Automático" acá quiere decir *un clic*,
 no que se actualice de fondo.
-
----
 
 ## Formatos que lee
 
@@ -137,7 +135,7 @@ lado**, no hay servidor ni base de datos.
 Consecuencia: si cambiás de máquina o de navegador, los datos no viajan solos.
 Usá **Exportar → Bajar respaldo completo (.json)** y después **Restaurar** del
 otro lado. El respaldo incluye las notas y las fechas de revisión, que no van
-en el Excel.
+en el `.xlsx` que exportás.
 
 > Conviene bajar un respaldo de vez en cuando. Si alguien limpia los datos de
 > navegación del navegador, se borra todo. **Éste es el riesgo real, no el
@@ -219,7 +217,7 @@ repositorio y **Deploy**. No hay que configurar nada: no tiene build, es un
 archivo estático.
 
 También funciona en GitHub Pages, Netlify, o abriendo `index.html` con doble
-clic (en ese caso no anda vincular la planilla, que necesita `https`).
+clic (en ese caso no anda vincular el archivo de RUS, que necesita `https`).
 
 ---
 

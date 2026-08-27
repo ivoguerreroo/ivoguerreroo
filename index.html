@@ -2728,34 +2728,17 @@ function exportarCSV(lista, conRus, nombre){
 }
 
 function mostrarExportar(){
-  const lote = ESTADO.meta.ultimoLote;
-  const nuevos = lote && lote.id ? ESTADO.siniestros.filter(s => s.lote === lote.id) : [];
   const visibles = listaVisible();
 
   $('#cuerpoExportar').innerHTML =
-    '<div class="aviso-caja info">' + icono('info') +
-      '<div>La opción <b>Igual a tu planilla</b> respeta exactamente las 14 columnas de tu Excel, en el mismo orden. ' +
-      'Podés abrirla y copiar las filas directo al archivo original.</div></div>' +
-    (nuevos.length
-      ? '<div class="bloque"><div class="bloque-tit">Lo último que importaste</div>' +
-        '<button class="btn btn-principal" style="width:100%" data-exportar="nuevos">' + icono('bajar') +
-        'Sólo los ' + nuevos.length + ' nuevos (.xlsx)</button>' +
-        '<p style="font-size:12px;color:var(--texto-3);margin-top:7px">Para pegarlos debajo en tu planilla original sin tocar el resto.</p></div>'
-      : '') +
-    '<div class="bloque"><div class="bloque-tit">Planilla completa (' + ESTADO.siniestros.length + ')</div>' +
+    '<div class="bloque"><div class="bloque-tit">Todos los siniestros (' + ESTADO.siniestros.length + ')</div>' +
       '<div style="display:flex;flex-direction:column;gap:7px">' +
-      '<button class="btn" data-exportar="todo">' + icono('bajar') + 'Igual a tu planilla (.xlsx)</button>' +
+      '<button class="btn" data-exportar="todo">' + icono('bajar') + 'Exportar en Excel (.xlsx)</button>' +
       '<button class="btn" data-exportar="todo-rus">' + icono('bajar') + 'Con los datos de RUS agregados (.xlsx)</button>' +
-      '<button class="btn" data-exportar="todo-csv">' + icono('bajar') + 'CSV para Excel (.csv)</button>' +
+      '<button class="btn" data-exportar="todo-csv">' + icono('bajar') + 'CSV (.csv)</button>' +
       '</div></div>' +
     '<div class="bloque"><div class="bloque-tit">Lo que estás viendo (' + visibles.length + ')</div>' +
       '<button class="btn" style="width:100%" data-exportar="filtrado">' + icono('bajar') + 'Exportar sólo estos (.xlsx)</button></div>' +
-    (HAY_VINCULO && ESTADO.meta.planillaVinculada
-      ? '<div class="bloque"><div class="bloque-tit">Planilla vinculada</div>' +
-        '<button class="btn" style="width:100%" id="btnGuardarVinculada">' + icono('carpeta') +
-        'Guardar en ' + esc(ESTADO.meta.planillaVinculada) + '</button>' +
-        '<p style="font-size:12px;color:var(--texto-3);margin-top:7px">Reemplaza el archivo original. Te pide confirmación antes.</p></div>'
-      : '') +
     '<div class="bloque"><div class="bloque-tit">Respaldo</div>' +
       '<div style="display:flex;flex-direction:column;gap:7px">' +
       '<button class="btn" data-exportar="json">' + icono('bajar') + 'Bajar respaldo completo (.json)</button>' +
@@ -2947,7 +2930,7 @@ function mostrarAjustes(){
 }
 
 /* ============================================================
-   VÍNCULO CON EL ARCHIVO — el navegador se acuerda de tu planilla
+   VÍNCULO CON EL ARCHIVO — el navegador se acuerda del archivo de RUS
    Sólo anda en Chrome/Edge sobre https (o localhost). Si no está
    disponible, todo sigue funcionando con importar y exportar.
    ============================================================ */
@@ -3026,26 +3009,6 @@ async function desvincularPlanilla(){
   avisar('Desvinculada', 'bien');
 }
 
-/** Escribe la planilla completa en el archivo vinculado (pide confirmación). */
-async function guardarEnPlanillaVinculada(){
-  const enlace = await leerEnlace('planilla');
-  if (!enlace) return avisar('Primero vinculá una planilla.', 'mal');
-  if (!confirm('Voy a REEMPLAZAR el contenido de "' + enlace.name + '" por los ' +
-               ESTADO.siniestros.length + ' siniestros de esta lista.\n\n' +
-               'El archivo queda con las 14 columnas de siempre, sin colores ni fórmulas.\n\n¿Seguimos?')) return;
-  if (!(await pedirPermiso(enlace, true)))
-    return avisar('El navegador no me dio permiso para escribir el archivo.', 'mal');
-  try {
-    const bytes = await EscritorPlanillas.crearXLSX('Siniestros', filasParaExportar(ESTADO.siniestros, false));
-    const flujo = await enlace.createWritable();
-    await flujo.write(bytes);
-    await flujo.close();
-    avisar('Guardado en "' + enlace.name + '"', 'bien');
-  } catch(e){
-    avisar('No pude escribir el archivo: ' + e.message, 'mal');
-  }
-}
-
 /** Pinta el recuadro del vínculo dentro del importador. */
 async function pintarVinculo(){
   const caja = $('#cajaVinculo');
@@ -3057,14 +3020,14 @@ async function pintarVinculo(){
   const enlace = await leerEnlace('planilla');
   caja.innerHTML = enlace
     ? '<div class="aviso-caja ok" style="align-items:center">' + icono('carpeta') +
-        '<div style="flex:1"><b>Planilla vinculada:</b> ' + esc(enlace.name) + '<br>' +
-        '<small>Tocá sincronizar y leo el archivo de nuevo, sin buscarlo.</small></div>' +
+        '<div style="flex:1"><b>Archivo vinculado:</b> ' + esc(enlace.name) + '<br>' +
+        '<small>Tocá sincronizar y lo vuelvo a leer, sin que lo tengas que buscar.</small></div>' +
         '<button class="btn btn-chico btn-principal" id="btnSincronizar">' + icono('refrescar') + 'Sincronizar</button>' +
         '<button class="btn btn-chico btn-fantasma" id="btnDesvincular" title="Desvincular">' + icono('x') + '</button>' +
       '</div>'
     : '<div class="aviso-caja info" style="align-items:center">' + icono('carpeta') +
-        '<div style="flex:1">Podés <b>vincular tu planilla</b> una sola vez y después actualizarla con un clic, ' +
-        'sin tener que buscar el archivo cada vez.</div>' +
+        '<div style="flex:1">Si siempre bajás el archivo de RUS al mismo lugar, podés <b>vincularlo</b> una vez ' +
+        'y después actualizarlo con un clic, sin tener que buscarlo cada semana.</div>' +
         '<button class="btn btn-chico" id="btnVincular">Vincular</button>' +
       '</div>';
 }
@@ -3261,7 +3224,6 @@ function conectar(){
       const que = exportar.dataset.exportar;
       const lote = ESTADO.meta.ultimoLote;
       const sello = selloFecha();
-      if (que === 'nuevos')    return exportarXLSX(ESTADO.siniestros.filter(s => lote && s.lote === lote.id), false, 'siniestros-nuevos-' + sello + '.xlsx');
       if (que === 'todo')      return exportarXLSX(ESTADO.siniestros, false, 'planilla-siniestros-' + sello + '.xlsx');
       if (que === 'todo-rus')  return exportarXLSX(ESTADO.siniestros, true,  'planilla-siniestros-completa-' + sello + '.xlsx');
       if (que === 'todo-csv')  return exportarCSV(ESTADO.siniestros, false, 'planilla-siniestros-' + sello + '.csv');
@@ -3296,7 +3258,6 @@ function conectar(){
     if (t.closest('#btnVincular'))    return vincularPlanilla();
     if (t.closest('#btnSincronizar')) return sincronizarPlanilla();
     if (t.closest('#btnDesvincular')) return desvincularPlanilla();
-    if (t.closest('#btnGuardarVinculada')) return guardarEnPlanillaVinculada();
 
     /* abrir el detalle al tocar una tarjeta o una fila */
     const tarjeta = t.closest('.tarjeta[data-id], tr[data-id]');
