@@ -143,6 +143,47 @@ en el Excel.
 > navegación del navegador, se borra todo. **Éste es el riesgo real, no el
 > espacio.**
 
+### Respaldo automático por mail
+
+La app puede mandar el respaldo `.json` por mail sola, cada 7 días, como
+adjunto. El archivo del script está en `apps-script/respaldo.gs`.
+
+**Antes que nada, una aclaración que conviene entender.** Una página web no
+puede mandar mails por su cuenta: no tiene servidor ni credenciales, y los
+datos viven en el navegador de quien la usa. Por eso el envío lo dispara el
+navegador **al abrir la página**, contra un Google Apps Script que sí tiene
+permiso de enviar. En la práctica: la primera vez que se abre la app después de
+una semana, sale el respaldo. Con la compu apagada no se manda nada, pero
+tampoco hace falta — si nadie la abrió, los datos no cambiaron.
+
+Se eligió Apps Script porque es gratis, no pide dominio propio ni tarjeta, y el
+mail sale de una cuenta de Gmail que ya se tiene.
+
+**Cómo se configura (una sola vez, unos 5 minutos):**
+
+1. Entrá a [script.google.com](https://script.google.com) → **Nuevo proyecto**.
+2. Borrá lo que aparezca y pegá todo el contenido de `apps-script/respaldo.gs`.
+3. Arriba de ese archivo hay dos líneas para tocar:
+   - `DESTINO` — a qué mail llega. Ya viene con el de destino puesto.
+   - `CLAVE` — cambiala por cualquier frase inventada.
+4. **Implementar → Nueva implementación → Aplicación web**, con
+   *Ejecutar como: Yo* y *Quién tiene acceso: Cualquier usuario*.
+5. Autorizá los permisos (es tu propia cuenta) y copiá la URL que termina en
+   `/exec`.
+6. En la app: **Configuración → Respaldo automático**, pegá la URL, escribí la
+   misma clave, activá la casilla y tocá **Mandar uno de prueba ahora**.
+
+Si el mail de prueba llega, ya está andando.
+
+**Dos decisiones de seguridad:**
+
+- El mail de destino está **fijo dentro del script**, no lo manda la página.
+  Aunque alguien descubra la URL, no puede usar el servicio para mandar mails a
+  otro lado.
+- **La clave y la URL no viajan en el respaldo.** Esos mails quedan guardados
+  para siempre en una casilla y no corresponde que lleven una credencial
+  adentro. Al restaurar en otra máquina hay que volver a pegarlas.
+
 ### ¿Cuánto ocupa?
 
 Con 196 siniestros cargados: **101 KB**. El tope del navegador ronda los 5 MB,

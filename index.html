@@ -1675,7 +1675,10 @@ const SINONIMOS = {
   tipoLesion:['tipolesion','lesion']
 };
 
-const AJUSTES_POR_DEFECTO = { diasGeneral:12, diasTercero:7, tema:'auto' };
+const AJUSTES_POR_DEFECTO = {
+  diasGeneral:12, diasTercero:7, tema:'auto',
+  respaldo: { activo:false, dias:7, url:'', clave:'', ultimoEnvio:null, ultimoError:'', sinConfirmar:false }
+};
 
 let ESTADO = { version:1, siniestros:[], ajustes:{...AJUSTES_POR_DEFECTO}, meta:{} };
 
@@ -1832,10 +1835,16 @@ function calcularUrgencia(s){
 /* ---------- guardado ---------- */
 /** Saca los campos vacíos antes de guardar. Más de la mitad de lo que se
  *  guardaba eran comillas vacías de columnas que la planilla no usa. */
-function compactar(estado){
+function compactar(estado, conCredenciales){
+  // La dirección del servicio de envío y su clave son de esta máquina: no
+  // viajan en los respaldos, que quedan guardados para siempre en un mail.
+  let ajustes = estado.ajustes;
+  if (!conCredenciales){
+    ajustes = { ...ajustes, respaldo: { ...(ajustes.respaldo || {}), url:'', clave:'' } };
+  }
   return {
     version: estado.version,
-    ajustes: estado.ajustes,
+    ajustes: ajustes,
     meta: estado.meta,
     siniestros: estado.siniestros.map(s => {
       const o = {};
@@ -1868,7 +1877,7 @@ function enTamano(bytes){
 
 function guardar(){
   try {
-    localStorage.setItem(CLAVE_GUARDADO, JSON.stringify(compactar(ESTADO)));
+    localStorage.setItem(CLAVE_GUARDADO, JSON.stringify(compactar(ESTADO, true)));
     return true;
   } catch(e){
     avisar('Se llenó el espacio del navegador. Bajá un respaldo (.json) ya mismo desde Exportar.', 'mal');
@@ -1882,6 +1891,7 @@ function cargar(){
     const d = JSON.parse(crudo);
     if (d && Array.isArray(d.siniestros)){
       ESTADO = { version:1, siniestros:d.siniestros, ajustes:{...AJUSTES_POR_DEFECTO, ...(d.ajustes||{})}, meta:d.meta||{} };
+      ESTADO.ajustes.respaldo = { ...AJUSTES_POR_DEFECTO.respaldo, ...(ESTADO.ajustes.respaldo||{}) };
     }
   } catch(e){ /* arrancamos vacíos */ }
 }
@@ -2721,8 +2731,135 @@ function mostrarExportar(){
 }
 
 /* ============================================================
+   RESPALDO POR MAIL
+   Una página sola no puede mandar mails: no tiene servidor ni credenciales,
+   y los datos viven acá, en este navegador. Por eso el envío lo dispara el
+   navegador contra un Google Apps Script que sí tiene permiso de enviar.
+   Consecuencia: se manda cuando se abre la página, no a una hora fija.
+   ============================================================ */
+function armarRespaldo(){
+  const datos = JSON.stringify(compactar(ESTADO, false));
+  const u = usoGuardado();
+  const enCurso = ESTADO.siniestros.filter(x => !estaTerminado(x)).length;
+  return {
+    clave: ESTADO.ajustes.respaldo.clave || '',
+    nombre: 'respaldo-siniestros-' + selloFecha() + '.json',
+    fecha: formatearFecha(hoyISO()),
+    resumen: ESTADO.siniestros.length + ' siniestros en total, ' + enCurso + ' en curso. ' +
+             'El archivo pesa ' + enTamano(u.bytes) + '.',
+    contenido: datos
+  };
+}
+
+/** Devuelve {ok, confirmado, error}. Nunca lanza. */
+async function enviarRespaldo(){
+  const r = ESTADO.ajustes.respaldo;
+  if (!r.url) return { ok:false, error:'Falta la dirección del servicio de envío.' };
+
+  const cuerpo = JSON.stringify(armarRespaldo());
+  // text/plain a propósito: así el navegador no manda el pedido de permiso
+  // previo, que Apps Script no contesta.
+  const opciones = { method:'POST', headers:{ 'Content-Type':'text/plain;charset=utf-8' }, body:cuerpo };
+
+  let respuesta = null;
+  try {
+    respuesta = await fetch(r.url, opciones);
+  } catch(e){
+    // No llegó a haber respuesta: puede ser el navegador bloqueando la
+    // lectura. Reintentamos a ciegas, sin poder confirmar.
+    try {
+      await fetch(r.url, { ...opciones, mode:'no-cors' });
+      return { ok:true, confirmado:false };
+    } catch(e2){
+      return { ok:false, error:'No pude contactar al servicio de envío.' };
+    }
+  }
+
+  try {
+    const datos = await respuesta.json();
+    if (datos && datos.ok) return { ok:true, confirmado:true };
+    return { ok:false, error:(datos && datos.error) || 'El servicio rechazó el envío.' };
+  } catch(e){
+    // Contestó pero no pude leer la respuesta. No reintento: el mail
+    // probablemente salió y no quiero mandar dos.
+    return { ok:true, confirmado:false };
+  }
+}
+
+function anotarEnvio(res){
+  const r = ESTADO.ajustes.respaldo;
+  if (res.ok){
+    r.ultimoEnvio = new Date().toISOString();
+    r.ultimoError = '';
+    r.sinConfirmar = !res.confirmado;
+  } else {
+    r.ultimoError = res.error || 'Falló el envío';
+  }
+  guardar();
+}
+
+/** Al abrir la página: si pasó el plazo, manda el respaldo en segundo plano. */
+async function chequearRespaldo(){
+  const r = ESTADO.ajustes.respaldo;
+  if (!ESTADO.siniestros.length) return;
+
+  if (!r.activo || !r.url){
+    // Sin respaldo automático, al menos avisamos cada tanto.
+    const desde = diasDesde(ESTADO.meta.ultimoRespaldoManual);
+    if (desde === null || desde >= 14)
+      setTimeout(() => avisar('Hace rato que no bajás un respaldo. Entrá a Exportar y guardá uno.', 'mal'), 1600);
+    return;
+  }
+
+  const desde = diasDesde(r.ultimoEnvio);
+  if (desde !== null && desde < (r.dias || 7)) return;
+
+  const res = await enviarRespaldo();
+  anotarEnvio(res);
+  if (res.ok) avisar('Respaldo semanal enviado por mail' + (res.confirmado ? '' : ' (sin confirmación)'), 'bien');
+  else avisar('No pude mandar el respaldo automático: ' + res.error, 'mal');
+}
+
+/* ============================================================
    AJUSTES
    ============================================================ */
+/** Configuración del respaldo automático por mail. */
+function bloqueRespaldo(){
+  const r = ESTADO.ajustes.respaldo;
+  const desde = diasDesde(r.ultimoEnvio);
+  const estado = r.ultimoError
+    ? '<div class="aviso-caja mal" style="margin-bottom:10px">' + icono('alerta') +
+      '<div><b>El último envío falló.</b><br>' + esc(r.ultimoError) + '</div></div>'
+    : r.ultimoEnvio
+      ? '<div class="aviso-caja ok" style="margin-bottom:10px">' + icono('ok') +
+        '<div>Último respaldo enviado <b>' + textoDias(desde) + '</b>' +
+        (r.sinConfirmar ? '. El navegador no me dejó confirmarlo, revisá que haya llegado.' : '.') +
+        '</div></div>'
+      : '';
+
+  return '<div class="bloque"><div class="bloque-tit">Respaldo automático por mail</div>' +
+    estado +
+    '<label class="fila-previa" style="margin-bottom:10px">' +
+      '<input type="checkbox" id="respActivo"' + (r.activo ? ' checked' : '') + '>' +
+      '<span class="fp-txt" style="color:var(--texto)">Mandar el respaldo por mail cada ' +
+      '<b>' + (r.dias || 7) + ' días</b></span></label>' +
+    '<div class="campos">' +
+      '<div class="campo ancho"><label>Dirección del servicio de envío (termina en /exec)</label>' +
+        '<input type="url" id="respUrl" placeholder="https://script.google.com/macros/s/…/exec" value="' + esc(r.url) + '"></div>' +
+      '<div class="campo"><label>Clave que pusiste en el script</label>' +
+        '<input type="text" id="respClave" value="' + esc(r.clave) + '"></div>' +
+      '<div class="campo"><label>Cada cuántos días</label>' +
+        '<input type="number" min="1" max="90" id="respDias" value="' + (r.dias || 7) + '"></div>' +
+    '</div>' +
+    '<button class="btn" style="width:100%;margin-top:10px" id="btnProbarRespaldo">' +
+      icono('subir') + 'Mandar uno de prueba ahora</button>' +
+    '<p style="font-size:12px;color:var(--texto-3);margin-top:8px">' +
+    'El mail sale hacia <b>walterguerreroseguros@gmail.com</b>, que está fijado en el script. ' +
+    'El envío se dispara <b>al abrir la página</b>, no a una hora fija: una página web no puede ' +
+    'mandar mails sola con la compu apagada. En la práctica, la primera vez que la abre después ' +
+    'de una semana, sale el respaldo.</p></div>';
+}
+
 /** Barra con el lugar ocupado, para que se vea que no se está llenando. */
 function bloqueEspacio(){
   const u = usoGuardado();
@@ -2765,6 +2902,7 @@ function mostrarAjustes(){
       'Apenas marcás Facturado, el siniestro sale de la lista y queda guardado acá. ' +
       'Si alguno lo marcaste sin querer, entrá, destildá <b>Facturado</b> y vuelve solo. ' +
       'No se borra nunca nada.</p></div>' +
+    bloqueRespaldo() +
     bloqueEspacio() +
     '<div class="bloque"><div class="bloque-tit">Cómo funciona</div>' +
       '<div class="aviso-caja info">' + icono('info') + '<div>' +
@@ -2980,9 +3118,17 @@ function conectar(){
 
   /* --- ajustes --- */
   $('#cuerpoAjustes').addEventListener('change', e => {
+    const r = ESTADO.ajustes.respaldo;
     if (e.target.id === 'ajDiasGeneral') ESTADO.ajustes.diasGeneral = Math.max(1, +e.target.value || 12);
     if (e.target.id === 'ajDiasTercero') ESTADO.ajustes.diasTercero = Math.max(1, +e.target.value || 7);
-    guardar(); render();
+    if (e.target.id === 'respActivo')    r.activo = e.target.checked;
+    if (e.target.id === 'respUrl')       r.url = e.target.value.trim();
+    if (e.target.id === 'respClave')     r.clave = e.target.value.trim();
+    if (e.target.id === 'respDias')      r.dias = Math.max(1, +e.target.value || 7);
+    if (e.target.id === 'respActivo' && r.activo && !r.url)
+      avisar('Falta pegar la dirección del servicio de envío.', 'mal');
+    guardar();
+    if (e.target.id === 'ajDiasGeneral' || e.target.id === 'ajDiasTercero') render();
   });
   $('#btnBorrarTodo').onclick = () => {
     const cuantos = ESTADO.siniestros.length;
@@ -3069,9 +3215,24 @@ function conectar(){
       if (que === 'todo-csv')  return exportarCSV(ESTADO.siniestros, false, 'planilla-siniestros-' + sello + '.csv');
       if (que === 'filtrado')  return exportarXLSX(listaVisible(), true, 'siniestros-filtrados-' + sello + '.xlsx');
       if (que === 'json'){
-        descargar('respaldo-siniestros-' + sello + '.json', JSON.stringify(ESTADO, null, 1), 'application/json');
+        descargar('respaldo-siniestros-' + sello + '.json', JSON.stringify(compactar(ESTADO, false), null, 1), 'application/json');
+        ESTADO.meta.ultimoRespaldoManual = new Date().toISOString();
+        guardar();
         return avisar('Respaldo bajado', 'bien');
       }
+    }
+    if (t.closest('#btnProbarRespaldo')){
+      const boton = t.closest('#btnProbarRespaldo');
+      boton.disabled = true;
+      boton.innerHTML = icono('refrescar') + 'Mandando…';
+      const res = await enviarRespaldo();
+      anotarEnvio(res);
+      if (res.ok) avisar(res.confirmado
+        ? 'Listo, el mail salió. Fijate que haya llegado.'
+        : 'Se mandó, pero el navegador no me dejó confirmarlo. Revisá la casilla.', 'bien');
+      else avisar('No salió: ' + res.error, 'mal');
+      mostrarAjustes();
+      return;
     }
     if (t.closest('#btnVerFacturados')){
       cerrarVelo('veloAjustes');
@@ -3117,7 +3278,10 @@ function conectar(){
       if (!d || !Array.isArray(d.siniestros)) throw new Error('El archivo no es un respaldo válido');
       if (ESTADO.siniestros.length &&
           !confirm('Vas a reemplazar los ' + ESTADO.siniestros.length + ' siniestros que ya tenés por los ' + d.siniestros.length + ' del respaldo.\n\n¿Seguimos?')) return;
+      const envioActual = ESTADO.ajustes.respaldo;   // es de esta máquina, no del respaldo
       ESTADO = { version:1, siniestros:d.siniestros, ajustes:{...AJUSTES_POR_DEFECTO, ...(d.ajustes||{})}, meta:d.meta||{} };
+      ESTADO.ajustes.respaldo = { ...AJUSTES_POR_DEFECTO.respaldo, ...(d.ajustes && d.ajustes.respaldo || {}),
+                                  url: envioActual.url, clave: envioActual.clave };
       guardar(); cerrarVelo('veloExportar'); render(); aplicarTema();
       avisar('Restauré ' + d.siniestros.length + ' siniestros', 'bien');
     } catch(err){ avisar('No pude leer el respaldo: ' + err.message, 'mal'); }
@@ -3131,6 +3295,7 @@ aplicarTema();
 conectar();
 render();
 window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', aplicarTema);
+chequearRespaldo();
 </script>
 </body>
 </html>
