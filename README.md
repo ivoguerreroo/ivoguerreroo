@@ -146,13 +146,13 @@ de revisión **no se pisan nunca**.
 ### Las marcas de la planilla sí se importan
 
 `INFORME`, `CIERRE` y `FACTURADO` se traen tal cual vienen del Excel. Eso es lo
-que hace que al importar los 189 siniestros históricos queden a la vista sólo
-los **38 que están abiertos**: los ~150 ya cobrados entran directo a Facturados
-y no molestan.
+que hace que al importar los siniestros históricos queden a la vista sólo los
+que siguen realmente abiertos: los que ya tienen informe y cierre (facturados
+o no) entran directo a Por facturar o a Terminados, y no molestan.
 
-Si alguna vez hace falta empezar de cero, en **Configuración → Facturados** hay
-un botón para desmarcarlos todos de una. No borra siniestros, ni notas, ni
-fechas de revisión: sólo la marca.
+Si alguna vez hace falta empezar de cero, en **Configuración → Terminados** hay
+un botón para reabrirlos todos de una. No borra siniestros, ni notas, ni
+fechas de revisión: sólo esas tres marcas.
 
 ---
 
