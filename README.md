@@ -60,27 +60,23 @@ pone adelante lo vencido y lo abandonado.
 
 ### Cuándo desaparece un siniestro
 
-Cuando se marca **Facturado**. Ése es el final del circuito: la tarjeta se va
-de la página en el acto y no vuelve a aparecer en el día a día.
+Cuando marcás **Informe** y **Cierre**, o cuando marcás **Facturado**. Con
+cualquiera de los dos, la tarjeta se va de la página en el acto.
 
-**Dónde quedan.** En **Configuración → Ver los N facturados**. No se borra
-nunca nada. Si marcaste uno sin querer, entrás ahí, destildás *Facturado* y
-vuelve solo a la lista.
+La diferencia es a dónde va:
 
-También los encontrás **buscando por número**: el buscador ignora los filtros
-y mira la lista entera, facturados incluidos.
+- **Informe + Cierre, sin facturar** → queda visible en la ficha **Por
+  facturar** del tablero. Es plata que ya podés cobrar; no se esconde.
+- **Facturado** → sale de la vista del todo y queda guardado en
+  **Configuración → Terminados**.
 
-El **cierre solo no alcanza**. Si está cerrado pero todavía no se facturó,
-sigue a la vista, porque es plata por cobrar. (En los datos reales había 79
-siniestros facturados sin el cierre marcado y sólo 4 al revés, así que el que
-manda es *Facturado*.)
+**Nada se borra nunca.** En Configuración → Terminados podés buscar cualquiera
+y destildar el paso que corresponda para que vuelva a la lista. También los
+encontrás **buscando por número**: el buscador ignora los filtros y mira la
+lista entera, terminados incluidos.
 
 Si en el export de RUS el estado dice *cerrada*, *finalizada* o *anulada*,
 también se considera terminado.
-
-Buscar por número **encuentra todo**, esté terminado o no: el buscador ignora
-el filtro. Y el chip **Ver todos**, al lado del buscador, muestra la lista
-entera.
 
 **Cada tarjeta** muestra lo mínimo para decidir sin cansar la vista: número de
 siniestro (con botón para copiarlo), vehículo, si es de tercero o de asegurado,
@@ -91,10 +87,10 @@ una línea con las fechas. El vencimiento se lee solo: dice *Venció el* en rojo
 Arriba a la derecha, una pastilla dice hace cuánto que no se mira: gris cuando
 está al día, ámbar cuando pasó el plazo configurado.
 
-Si el siniestro tiene un celular cargado, aparece un **botón de WhatsApp** que
-abre el chat con esa persona — en la tarjeta y en el detalle. Los teléfonos fijos
-y los mails que a veces quedan en esa columna no generan botón, porque WhatsApp
-no funcionaría.
+Si el siniestro tiene un celular cargado, aparece un **botón de WhatsApp**
+verde bien visible que abre el chat con esa persona — en la tarjeta y en el
+detalle. Los teléfonos fijos y los mails que a veces quedan en esa columna no
+generan botón, porque WhatsApp no funcionaría.
 
 **Abriendo el detalle** están todos los datos en un solo bloque y **todos se
 pueden editar**, incluso los que llegaron de RUS: si algo vino mal, se corrige a
