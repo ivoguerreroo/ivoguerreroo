@@ -5,8 +5,10 @@ description: >-
   Walter Guerrero para el seguimiento de sus siniestros de Rio Uruguay Seguros
   (RUS). Usar esta skill siempre que Walter, o quien sea que use la pagina,
   tenga una duda sobre su funcionamiento, por ejemplo que pasa al marcar
-  Informe, Cierre o Facturado (por separado o combinados), por que un
-  siniestro desaparecio de la lista o no se movio cuando deberia, como
+  Informe, Cierre, o cualquiera de las dos Facturas (por separado o
+  combinados), por que un siniestro desaparecio de la lista o no se movio
+  cuando deberia, por que a veces hay que facturar dos veces un mismo
+  siniestro, como
   funciona el tablero de arriba y sus 5 fichas, que significan los colores de
   urgencia de cada tarjeta y la pastilla de "hace cuanto no lo miro", como
   decide el sistema si un siniestro es Tercero, Asegurado o CLEAS, que pasa
@@ -36,34 +38,59 @@ antes de asumir que es un error del sistema.
 
 ---
 
-## 1. Los tres pasos: Informe, Cierre, Facturado
+## 1. Los cuatro pasos: Informe, Factura del informe, Cierre, Factura del cierre
 
-Cada siniestro tiene tres círculos para tocar: **Informe → Cierre →
-Facturado**. Son independientes entre sí (marcar uno no marca los otros
-solos), y lo que hacen es:
+Walter factura el informe y el cierre **por separado**: apenas termina el
+informe lo factura, y más adelante — sólo si RUS manda una orden de cerrar
+aparte — factura el cierre también, por otro monto. Para que esa segunda
+factura no se pierda de vista, cada siniestro tiene **cuatro** círculos para
+tocar, en este orden:
+
+**Informe → Factura del informe → Cierre → Factura del cierre**
+
+En la tarjeta los dos círculos de factura se ven con el mismo texto corto
+("FACTURA"), distinguibles sólo por la posición: el primero es la del
+informe, el segundo la del cierre. Son independientes entre sí (marcar uno
+no marca los otros solos), y lo que hacen es:
 
 | Marcaste... | Qué pasa |
 |---|---|
-| Sólo **Informe** | No pasa nada más que quedar marcado. El siniestro sigue en "En curso", a la vista. |
-| **Informe + Cierre** (sin Facturado) | El siniestro **sale de "En curso"** — pero no se pierde: pasa a la ficha **"Por facturar"** del tablero, que sigue visible. Es la señal de "ya está resuelto, falta cobrar". |
-| **Facturado** (con o sin Cierre marcado) | El siniestro **desaparece de la vista normal por completo**. Queda guardado en **Configuración → Terminados**. Alcanza con marcar sólo Facturado — no hace falta tener Cierre tildado también. |
+| Sólo **Informe** (sin Cierre) | El siniestro sigue en "En curso", a la vista. Esto no cambia aunque también se facture el informe: sin el Cierre marcado, nunca se considera terminado. |
+| **Informe + Factura del informe** (sin Cierre) | Sigue en "En curso" igual. Facturar el informe antes de tiempo **nunca** saca al siniestro de la lista — es exactamente lo que evita que desaparezca antes de que llegue (o no) la orden de cerrar. |
+| **Informe + Cierre**, con alguna factura pendiente | El siniestro **sale de "En curso"** — pero no se pierde: pasa a la ficha **"Por facturar"** del tablero, que sigue visible. Es la señal de "ya está resuelto, falta cobrar algo". Puede faltar la factura del informe, la del cierre, o las dos. |
+| **Informe + Cierre + las dos facturas** (o sólo la del informe, si ese siniestro nunca tuvo cierre por separado) | El siniestro **desaparece de la vista normal por completo**. Queda guardado en **Configuración → Terminados**. |
+
+Punto importante para no confundir a Walter: si un siniestro **nunca** tiene
+Cierre marcado, facturar sólo el informe **no alcanza** para que desaparezca
+de "En curso" — el Cierre siempre hace falta marcarlo tarde o temprano. La
+factura del cierre, en cambio, sólo hace falta si el Cierre está marcado: un
+siniestro con Cierre sin marcar nunca le va a "faltar" la factura del cierre
+para poder terminar.
 
 Un siniestro también se considera terminado automáticamente, sin que Walter
 toque nada, si el **estado que manda RUS** dice *cerrada*, *finalizada*,
-*anulada* o *rechazada*.
+*anulada* o *rechazada* — sin importar cómo estén las cuatro marcas propias.
 
 **Nada se borra nunca.** Marcar un paso sólo cambia dónde se ve el
-siniestro, no lo elimina. Para deshacer cualquiera de los tres, hay que
+siniestro, no lo elimina. Para deshacer cualquiera de los cuatro, hay que
 buscar el siniestro (el buscador encuentra los terminados también, ver
-sección 5) y destildar el paso: vuelve solo a la lista de "En curso".
+sección 5) y destildar el paso que corresponda.
 
 ### El botón "Reabrir los N" de Configuración
 
 En **Configuración → Terminados** hay un botón rojo que dice "Empezar de
-cero: reabrir los N". Esto **desmarca Informe, Cierre y Facturado de todos
-los terminados a la vez** — está pensado para arrancar de cero con la lista
-completa, no para el uso del día a día. No borra ningún siniestro, ni notas,
-ni fechas de revisión: sólo esas tres marcas.
+cero: reabrir los N". Esto **desmarca Informe, Cierre y las dos facturas de
+todos los terminados a la vez** — está pensado para arrancar de cero con la
+lista completa, no para el uso del día a día. No borra ningún siniestro, ni
+notas, ni fechas de revisión: sólo esas marcas.
+
+### Planillas viejas con una sola columna FACTURADO
+
+Si Walter importa una planilla vieja (de antes de que existieran las dos
+facturas) que tiene una sola columna `FACTURADO` tildada, el sistema la
+traduce solo: pone **las dos facturas nuevas marcadas** (y también Informe y
+Cierre, si no lo estaban ya) — así un siniestro histórico que ya estaba
+cobrado no vuelve a pedir que se facture de nuevo.
 
 ---
 
@@ -75,7 +102,7 @@ ni fechas de revisión: sólo esas tres marcas.
 | **Aseg. / CLEAS** | De los "en curso", los que son categoría Asegurado o CLEAS. |
 | **Terceros** | De los "en curso", los que son de terceros. |
 | **Sin revisar** | De los "en curso", los que hace más días de la cuenta que nadie los abre. El plazo se configura (por defecto 12 días para los comunes, 7 días para los de tercero — los de tercero se controlan más seguido porque son los que más se escapan). |
-| **Por facturar** | Informe **y** Cierre marcados, pero Facturado todavía no. Es la plata que ya se puede cobrar. |
+| **Por facturar** | Informe **y** Cierre marcados, pero falta facturar el informe, el cierre, o los dos. Es la plata que ya se puede cobrar. |
 
 No están en el tablero, pero existen: **Urgentes** (los de mayor puntaje de
 urgencia — se llega ahí sólo internamente, el orden por defecto de las
@@ -267,19 +294,31 @@ nada — siempre hace falta un clic en "Sincronizar".
 
 ## Dudas típicas (para responder rápido)
 
-**"Marqué Informe y Cierre y el siniestro no se movió."**
-Fijate si de verdad quedaron los dos marcados (a veces uno se toca dos
-veces y termina desmarcado). Si los dos están marcados y sigue en "En
-curso", puede ser que ya estuviera facturado o que RUS lo haya dado de baja
-por otro motivo — buscalo por número y mirá el detalle.
+**"Marqué Informe y Cierre y el siniestro no se movió de 'En curso'."**
+Eso no debería pasar — con Informe y Cierre marcados, como mínimo pasa a
+"Por facturar" (sigue visible, pero ya no en "En curso"). Fijate si de
+verdad quedaron los dos marcados (a veces uno se toca dos veces y termina
+desmarcado). Si los dos están marcados y sigue en "En curso" igual, buscalo
+por número y mirá el detalle — puede haber un motivo que no salta a la
+vista.
+
+**"Facturé el informe y el siniestro no desapareció de la lista."**
+Es lo esperado, no un error: mientras el Cierre no esté marcado, facturar
+el informe no alcanza para terminarlo — sigue en "En curso" hasta que
+también se marque Cierre (ver sección 1). Es justo lo que evita perder de
+vista una segunda factura que todavía no llegó.
 
 **"No encuentro un siniestro que sé que existe."**
 Escribilo en el buscador de arriba: encuentra todo, esté terminado o no,
 sin importar el filtro activo.
 
-**"Marqué Facturado sin querer."**
-Andá a Configuración → "Ver los N terminados", buscá el número, y
-destildá Facturado. Vuelve solo a la lista. No se pierde nada.
+**"Marqué una Factura sin querer."**
+Si el siniestro ya desapareció de la lista, andá a Configuración → "Ver
+los N terminados", buscá el número, y destildá la factura que corresponda
+(la del informe o la del cierre — se distinguen por la posición: la
+primera es la del informe, la segunda la del cierre). Vuelve solo a la
+lista, o a "Por facturar" si la otra factura ya estaba hecha. No se pierde
+nada.
 
 **"¿Por qué este siniestro aparece más arriba que otro que venció antes?"**
 El orden por defecto no es sólo por fecha de vencimiento: combina varias

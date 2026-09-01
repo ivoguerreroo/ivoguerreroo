@@ -253,7 +253,7 @@ select.control:focus{outline:none;border-color:var(--acento)}
 .marca-tipo.es-aviso{background:var(--aviso-suave);color:var(--aviso)}
 .marca-tipo.es-ok{background:var(--ok-suave);color:var(--ok)}
 
-/* pasos: informe -> cierre -> facturado */
+/* pasos: informe -> factura informe -> cierre -> factura cierre */
 .pasos{display:flex;padding:0 15px 12px 18px}
 .paso{
   flex:1;position:relative;display:flex;flex-direction:column;align-items:center;gap:5px;
@@ -1634,8 +1634,9 @@ const CAMPOS = {
   telefono:     { rotulo:'Teléfonos',            grupo:'propio' },
   observaciones:{ rotulo:'Observaciones',        grupo:'propio' },
   informe:      { rotulo:'Informe',              grupo:'propio', marca:true },
+  facturadoInforme:{ rotulo:'Factura del informe', grupo:'propio', marca:true },
   cierre:       { rotulo:'Cierre',               grupo:'propio', marca:true },
-  facturado:    { rotulo:'Facturado',            grupo:'propio', marca:true },
+  facturadoCierre: { rotulo:'Factura del cierre',  grupo:'propio', marca:true },
   tramitador:   { rotulo:'Tramitador',           grupo:'propio' },
   km:           { rotulo:'KM',                   grupo:'propio' },
   fechaOfrec:   { rotulo:'Fecha de ofrecimiento',grupo:'propio', fecha:true },
@@ -1666,7 +1667,7 @@ const PERFILES = [
   { id:'propia', nombre:'Tu planilla de seguimiento', requiere:['siniestro'],
     mapa:{ fechaderiv:'fechaDeriv', fechacierre:'fechaCierre', siniestro:'nro', dominio:'dominio',
            vehiculo:'vehiculo', asegoterc:'categoria', telefonos:'telefono', observaciones:'observaciones',
-           informe:'informe', cierre:'cierre', facturado:'facturado', tramitador:'tramitador',
+           informe:'informe', cierre:'cierre', facturado:'facturadoLegado', tramitador:'tramitador',
            km:'km', fechaofrecimiento:'fechaOfrec' } }
 ];
 
@@ -1680,7 +1681,7 @@ const SINONIMOS = {
   categoria:['asegoterc','asegoterce','asegotercero','tipo','asegurado','tercero','condicion'],
   telefono:['telefonos','telefono','tel','celular','contacto'],
   observaciones:['observaciones','observacion','obs','detalle','comentarios','notas','descripcion'],
-  informe:['informe','informes'], cierre:['cierre'], facturado:['facturado','factura','facturacion'],
+  informe:['informe','informes'], cierre:['cierre'], facturadoLegado:['facturado','factura','facturacion'],
   tramitador:['tramitador','gestor','responsable'], km:['km','kilometros','kms'],
   fechaOfrec:['fechaofrecimiento','ofrecimiento'],
   tarea:['nombredelatarea','tarea','tareaasignada'],
@@ -1822,14 +1823,40 @@ function aWhatsapp(tel){
 const enlaceWhatsapp = tel => { const n = aWhatsapp(tel); return n ? 'https://wa.me/' + n : ''; };
 
 /* ---------- marcas X ---------- */
-/** Un siniestro sale de la lista cuando el trabajo propio está hecho: con el
- *  informe y el cierre marcados ya no hay nada que hacerle. También sale si
- *  está facturado (algunos vienen así de la planilla) o si RUS lo dio de baja.
- *  Lo que quedó cerrado pero sin cobrar no se pierde: sigue en "Por facturar". */
+/** El trabajo propio está hecho: informe y cierre marcados, ya no hay nada
+ *  más que hacerle. Un siniestro sin cierre por separado (la mayoría) no
+ *  llega nunca acá sólo con el informe: el cierre se termina marcando igual,
+ *  aunque no haya una orden aparte de RUS. */
+function trabajoCompleto(s){ return esMarca(s.informe) && esMarca(s.cierre); }
+
+function estadoRusCerrado(s){ return /cerrad|finaliz|anulad|rechazad/i.test(String(s.estadoRus || '')); }
+
+/** El informe siempre se factura aparte. El cierre sólo hace falta facturarlo
+ *  si de verdad hubo un cierre (si nunca se marcó, no hay nada pendiente ahí). */
+function facturacionCompleta(s){
+  if (!esMarca(s.facturadoInforme)) return false;
+  if (esMarca(s.cierre) && !esMarca(s.facturadoCierre)) return false;
+  return true;
+}
+
+/** Un siniestro sale de la lista del todo cuando ya está facturado por
+ *  completo (algunos vienen así de la planilla) o si RUS lo dio de baja.
+ *  Mientras falte facturar algo de un trabajo ya terminado, no se pierde:
+ *  sigue en "Por facturar" (ver etapaDe). Y si todavía falta el cierre,
+ *  sigue en curso — nunca desaparece sólo por haber facturado el informe. */
 function estaTerminado(s){
-  if (esMarca(s.informe) && esMarca(s.cierre)) return true;
-  if (esMarca(s.facturado)) return true;
-  return /cerrad|finaliz|anulad|rechazad/i.test(String(s.estadoRus || ''));
+  if (estadoRusCerrado(s)) return true;
+  if (!trabajoCompleto(s)) return false;
+  return facturacionCompleta(s);
+}
+
+/** 'activo' = queda trabajo por hacer (informe y/o cierre). 'porfacturar' =
+ *  el trabajo está listo pero falta facturar el informe, el cierre, o los
+ *  dos. 'terminado' = no queda nada pendiente. */
+function etapaDe(s){
+  if (estaTerminado(s)) return 'terminado';
+  if (trabajoCompleto(s)) return 'porfacturar';
+  return 'activo';
 }
 
 const esMarca = v => {
@@ -1843,7 +1870,7 @@ function calcularUrgencia(s){
   const esTercero = s.categoria === 'tercero';
   const motivos = [];
 
-  if (estaTerminado(s))
+  if (etapaDe(s) !== 'activo')
     return { nivel:'listo', puntaje:-1, motivos:['Terminado'],
              diasSinVer:diasDesde(s.ultimaRevision || s.creado), nuncaRevisado:!s.ultimaRevision };
 
@@ -1943,6 +1970,17 @@ function cargar(){
       ESTADO.ajustes.respaldo = { ...AJUSTES_POR_DEFECTO.respaldo, ...(ESTADO.ajustes.respaldo||{}) };
       // Lo cargado antes de que el tramitador saliera del emisor: se completa solo.
       ESTADO.siniestros.forEach(s => { if (!s.tramitador) s.tramitador = tramitadorDe(s); });
+      // Migración: antes había una sola marca de Facturado. Si ya estaba
+      // tildada, se traduce a las dos marcas nuevas para no hacer reaparecer
+      // siniestros que ya estaban cobrados.
+      ESTADO.siniestros.forEach(s => {
+        if (esMarca(s.facturado) && !esMarca(s.facturadoInforme) && !esMarca(s.facturadoCierre)){
+          s.facturadoInforme = 'X'; s.facturadoCierre = 'X';
+          if (!esMarca(s.informe)) s.informe = 'X';
+          if (!esMarca(s.cierre)) s.cierre = 'X';
+          delete s.facturado;
+        }
+      });
     }
   } catch(e){ /* arrancamos vacíos */ }
 }
@@ -2035,6 +2073,15 @@ function armarRegistros(filas, reconocido){
     reg.nro = normalizarNro(reg.nro);
     reg.categoria = deducirCategoria(reg.categoria, reg.tipoReclamo, reg.tarea);
     if (!reg.tramitador) reg.tramitador = tramitadorDe(reg);
+    // La planilla vieja traía una sola marca de Facturado. Si venía tildada,
+    // se traduce a las dos marcas nuevas (y a informe/cierre, por las dudas
+    // de que la fila no los tuviera) para no perder el "ya estaba cobrado".
+    if (esMarca(reg.facturadoLegado)){
+      reg.facturadoInforme = 'X'; reg.facturadoCierre = 'X';
+      if (!esMarca(reg.informe)) reg.informe = 'X';
+      if (!esMarca(reg.cierre)) reg.cierre = 'X';
+    }
+    delete reg.facturadoLegado;
     salida.push(reg);
   }
   return salida;
@@ -2171,18 +2218,18 @@ function avisar(texto, tipo){
 
 /* ---------- filtros ---------- */
 const FILTROS = {
-  activos:    { rotulo:'En curso',      pie:'falta facturar',      prueba:s => !estaTerminado(s) },
-  aseguracleas:{ rotulo:'Aseg. / CLEAS', pie:'en curso',           clase:'buena',   prueba:s => (s.categoria === 'asegurado' || s.categoria === 'cleas') && !estaTerminado(s) },
-  terceros:   { rotulo:'Terceros',      pie:'en curso',            clase:'tercera', prueba:s => s.categoria === 'tercero' && !estaTerminado(s) },
+  activos:    { rotulo:'En curso',      pie:'falta facturar',      prueba:s => etapaDe(s) === 'activo' },
+  aseguracleas:{ rotulo:'Aseg. / CLEAS', pie:'en curso',           clase:'buena',   prueba:s => (s.categoria === 'asegurado' || s.categoria === 'cleas') && etapaDe(s) === 'activo' },
+  terceros:   { rotulo:'Terceros',      pie:'en curso',            clase:'tercera', prueba:s => s.categoria === 'tercero' && etapaDe(s) === 'activo' },
   sinver:     { rotulo:'Sin revisar',   pie:'hace mucho',          clase:'avisa',   prueba:s => {
-                  if (estaTerminado(s)) return false;
+                  if (etapaDe(s) !== 'activo') return false;
                   const d = s._u.diasSinVer;
                   return d !== null && d > (s.categoria === 'tercero' ? ESTADO.ajustes.diasTercero : ESTADO.ajustes.diasGeneral);
                 } },
-  porfacturar:{ rotulo:'Por facturar',  pie:'cerrado, falta cobrar', clase:'avisa', prueba:s => esMarca(s.informe) && esMarca(s.cierre) && !esMarca(s.facturado) },
+  porfacturar:{ rotulo:'Por facturar',  pie:'cerrado, falta cobrar', clase:'avisa', prueba:s => etapaDe(s) === 'porfacturar' },
   urgentes:   { rotulo:'Urgentes',      pie:'atención ya',         oculto:true, clase:'critica', prueba:s => s._u.nivel === 'critico' },
   // Los facturados no van en el tablero: se llega a ellos desde Configuración.
-  terminados: { rotulo:'Terminados',    pie:'informe y cierre listos', oculto:true, prueba:s => estaTerminado(s) },
+  terminados: { rotulo:'Terminados',    pie:'todo facturado',      oculto:true, prueba:s => estaTerminado(s) },
   todos:      { rotulo:'Todos',         pie:'la lista entera',     oculto:true, prueba:() => true }
 };
 
@@ -2284,12 +2331,12 @@ function relojDe(s){
 }
 
 function pasosDe(s){
-  const pasos = [['informe','Informe'],['cierre','Cierre'],['facturado','Facturado']];
+  const pasos = [['informe','Informe'],['facturadoInforme','Factura'],['cierre','Cierre'],['facturadoCierre','Factura']];
   return '<div class="pasos">' + pasos.map(function(par, i){
     const campo = par[0], hecho = esMarca(s[campo]);
     const siguiente = pasos[i+1] && esMarca(s[pasos[i+1][0]]);
     return '<button class="paso' + (hecho ? ' hecho' : '') + (hecho && siguiente ? ' enlazado' : '') + '"' +
-      ' data-paso="' + campo + '" title="' + (hecho ? 'Marcado' : 'Sin marcar') + ' · clic para cambiar">' +
+      ' data-paso="' + campo + '" title="' + esc(CAMPOS[campo].rotulo) + ' · ' + (hecho ? 'marcado' : 'sin marcar') + ' · clic para cambiar">' +
       '<span class="punto">' + icono('ok') + '</span><b>' + par[1] + '</b></button>';
   }).join('') + '</div>';
 }
@@ -2353,7 +2400,7 @@ function pintarTabla(lista){
       '<td>' + (s.fechaVenc ? formatearFecha(s.fechaVenc) : '—') + '</td>' +
       '<td>' + (s.fechaDeriv ? formatearFecha(s.fechaDeriv) : '—') + '</td>' +
       '<td><div class="mini-pasos">' +
-        ['informe','cierre','facturado'].map(c => '<i class="' + (esMarca(s[c]) ? 'si' : '') + '"></i>').join('') +
+        ['informe','facturadoInforme','cierre','facturadoCierre'].map(c => '<i class="' + (esMarca(s[c]) ? 'si' : '') + '"></i>').join('') +
       '</div></td>' +
       '<td>' + esc(s.observaciones || '').slice(0,60) + '</td></tr>';
   }).join('');
@@ -2383,8 +2430,9 @@ function render(){
   const lista = listaVisible();
   const cartel = VISTA.filtro === 'terminados' && !VISTA.busqueda
     ? '<div class="aviso-caja info" style="margin-bottom:14px">' + icono('info') +
-      '<div><b>Estás viendo los facturados.</b> Estos no aparecen en la lista de todos los días. ' +
-      'Si marcaste alguno sin querer, destildá <b>Facturado</b> y vuelve solo a la lista.</div></div>'
+      '<div><b>Estás viendo los terminados.</b> Ya está todo facturado (o RUS lo dio de baja), ' +
+      'así que no aparecen en la lista de todos los días. Si alguno salió sin querer, destildá el ' +
+      'paso que corresponda y vuelve solo a la lista.</div></div>'
     : '';
   $('#contenido').innerHTML = cartel + (!lista.length ? pintarVacio()
     : (VISTA.modo === 'tabla' ? pintarTabla(lista) : pintarTarjetas(lista)));
@@ -2420,7 +2468,7 @@ function marcarRevisado(id, silencioso){
 function alternarPaso(id, campo){
   const s = buscarPorId(id);
   if (!s) return;
-  const estabaTerminado = estaTerminado(s);
+  const etapaAntes = etapaDe(s);
   const estaba = esMarca(s[campo]);
   s[campo] = estaba ? '' : 'X';
   if (campo === 'cierre' && !estaba && !s.fechaCierre) s.fechaCierre = hoyISO();
@@ -2431,15 +2479,17 @@ function alternarPaso(id, campo){
   render();
   if (idAbierto === id) abrirDetalle(id);
 
-  // Al facturarlo se va de la lista, y al destildarlo vuelve: hay que decirlo
-  // en los dos sentidos, si no parece que se perdió.
-  const ahoraTerminado = estaTerminado(s);
-  if (!estabaTerminado && ahoraTerminado && !VISTA.busqueda){
-    avisar(esMarca(s.facturado)
-      ? 'Facturado. Salió de la lista — lo tenés en Configuración → Terminados.'
-      : 'Listo. Salió de la lista y queda en "Por facturar" hasta que lo cobres.', 'bien');
-  } else if (estabaTerminado && !ahoraTerminado)
-    avisar('Listo, el ' + (s.nro || 'siniestro') + ' volvió a la lista.', 'bien');
+  // Cambió de etapa (en curso / por facturar / terminado): avisar en los dos
+  // sentidos, si no parece que el siniestro se perdió.
+  const etapaAhora = etapaDe(s);
+  if (etapaAntes !== etapaAhora && !VISTA.busqueda){
+    if (etapaAhora === 'terminado')
+      avisar('Listo, ya está todo facturado. Salió de la lista — lo tenés en Configuración → Terminados.', 'bien');
+    else if (etapaAhora === 'porfacturar')
+      avisar('Informe y cierre listos. Sigue en "Por facturar" hasta que factures lo que falta.', 'bien');
+    else if (etapaAntes === 'terminado' || etapaAntes === 'porfacturar')
+      avisar('Listo, el ' + (s.nro || 'siniestro') + ' volvió a la lista.', 'bien');
+  }
 }
 
 /** Desplegable que además conserva un valor que no esté en la lista. */
@@ -2769,13 +2819,14 @@ const COLUMNAS_PLANILLA = [
   ['Fecha deriv','fechaDeriv'], ['Fecha cierre','fechaCierre'], ['Siniestro','nro'],
   ['Dominio','dominio'], ['Vehiculo','vehiculo'], ['Aseg o terc','categoria'],
   ['TELÉFONOS','telefono'], ['observaciones','observaciones'], ['INFORME','informe'],
-  ['CIERRE','cierre'], ['FACTURADO','facturado'], ['TRAMITADOR','tramitador'],
+  ['CIERRE','cierre'], ['FACTURADO','_facturado'], ['TRAMITADOR','tramitador'],
   ['KM','km'], ['FECHA OFRECIMIENTO','fechaOfrec']
 ];
 const COLUMNAS_EXTRA = [
   ['Tarea RUS','tarea'], ['Tipo de reclamo','tipoReclamo'], ['Vence','fechaVenc'],
   ['Prioridad','prioridad'], ['Estado RUS','estadoRus'], ['Fecha siniestro','fechaSin'],
-  ['Dueño','duenio'], ['Última revisión','_revision'], ['Mis notas','notas']
+  ['Dueño','duenio'], ['Última revisión','_revision'],
+  ['Factura informe','facturadoInforme'], ['Factura cierre','facturadoCierre'], ['Mis notas','notas']
 ];
 const SALIDA_CATEGORIA = { tercero:'3RO', cleas:'CLEAS', asegurado:'Asegurado', otro:'Otro', '':'' };
 
@@ -2787,6 +2838,7 @@ function filasParaExportar(lista, conRus){
       const campo = par[1];
       if (campo === 'categoria') return SALIDA_CATEGORIA[s.categoria] || '';
       if (campo === '_revision') return s.ultimaRevision ? desdeISO(s.ultimaRevision.slice(0,10)) || '' : '';
+      if (campo === '_facturado') return facturacionCompleta(s) ? 'X' : '';
       if (campo === 'nro') return /^\d+$/.test(s.nro) ? Number(s.nro) : s.nro;
       if (CAMPOS[campo] && CAMPOS[campo].fecha) return desdeISO(s[campo]) || '';
       return s[campo] || '';
@@ -3071,9 +3123,10 @@ function mostrarAjustes(){
           ESTADO.siniestros.filter(estaTerminado).length + '</button>'
         : '') +
       '<p style="font-size:12px;color:var(--texto-3);margin-top:7px">' +
-      'Un siniestro sale de la lista cuando marcás <b>Informe</b> y <b>Cierre</b>, o cuando lo ' +
-      'facturás. Si alguno salió sin querer, entrá acá, buscalo y destildá el paso que corresponda. ' +
-      'No se borra nunca nada.</p></div>' +
+      'Con <b>Informe</b> y <b>Cierre</b> marcados, un siniestro pasa a "Por facturar" y ya no ' +
+      'aparece en la lista de todos los días. Termina del todo — y aparece acá — cuando está facturado ' +
+      'el informe, y el cierre también si lo hubo. Si alguno salió sin querer, entrá acá, buscalo y ' +
+      'destildá el paso que corresponda. No se borra nunca nada.</p></div>' +
     bloqueRespaldo() +
     bloqueEspacio() +
     '<div class="bloque"><div class="bloque-tit">Cómo funciona</div>' +
@@ -3289,7 +3342,7 @@ function conectar(){
   $('#btnBorrarTodo').onclick = () => {
     const cuantos = ESTADO.siniestros.length;
     if (!confirm('Esto borra los ' + cuantos + ' siniestros, con las notas y las fechas de revisión.\n\n' +
-                 'No es lo que hay que usar para sacar uno de la lista: para eso alcanza con marcarlo Facturado.\n\n' +
+                 'No es lo que hay que usar para sacar uno de la lista: para eso alcanza con marcar Informe y Cierre.\n\n' +
                  '¿Seguimos?')) return;
     if (!confirm('Última confirmación.\n\nSe borran ' + cuantos + ' siniestros y no se pueden recuperar, ' +
                  'salvo que tengas un respaldo .json bajado.\n\n¿Borro todo igual?')) return;
@@ -3413,15 +3466,15 @@ function conectar(){
     }
     if (t.closest('#btnDesmarcarFacturados')){
       const cuantos = ESTADO.siniestros.filter(estaTerminado).length;
-      if (!confirm('Voy a reabrir ' + cuantos + ' siniestros terminados (informe, cierre y facturado), ' +
+      if (!confirm('Voy a reabrir ' + cuantos + ' siniestros terminados (informe, cierre y las facturas), ' +
                    'así arrancás de cero.\n\n' +
-                   'No se borra ningún siniestro, ni las notas, ni las fechas de revisión: sólo esas tres marcas.\n\n' +
+                   'No se borra ningún siniestro, ni las notas, ni las fechas de revisión: sólo esas marcas.\n\n' +
                    'Van a volver todos a la lista de En curso. ¿Seguimos?')) return;
       const ahora = new Date().toISOString();
       let tocados = 0;
       ESTADO.siniestros.forEach(s => {
         if (!estaTerminado(s)) return;
-        s.informe = ''; s.cierre = ''; s.facturado = '';
+        s.informe = ''; s.cierre = ''; s.facturadoInforme = ''; s.facturadoCierre = '';
         if (/cerrad|finaliz|anulad|rechazad/i.test(String(s.estadoRus || ''))) s.estadoRus = '';
         s.actualizado = ahora;
         anotar(s, 'paso', 'Se reabrió para arrancar de cero');

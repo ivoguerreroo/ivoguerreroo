@@ -17,7 +17,7 @@ Vercel, abrir desde el celular o incluso abrir haciendo doble clic.
 | No se sabe hace cuánto que no se mira un siniestro | Cada tarjeta tiene un contador grande de días y un botón **Lo revisé** |
 | Al importar la planilla de RUS se cargan siniestros repetidos | Antes de agregar nada, muestra cuántos **faltaban**, cuántos **ya estaban** y cuáles son |
 | El Excel tiene tantas columnas que uno se pierde | La tarjeta muestra sólo lo que hace falta para decidir; el resto está en el detalle |
-| Los siniestros ya terminados tapan a los que faltan | Apenas se marca **Facturado**, el siniestro desaparece de la página |
+| Los siniestros ya terminados tapan a los que faltan | Apenas está todo facturado, el siniestro desaparece de la página |
 | Se pierde el Excel manual, con todo el trabajo de tenerlo al día | La app reemplaza esa planilla; no hace falta mantenerla más |
 
 ---
@@ -53,22 +53,41 @@ Vercel, abrir desde el celular o incluso abrir haciendo doble clic.
 - **Aseg. / CLEAS** — asegurado propio y convenio, en curso.
 - **Terceros** — los que más se escapan.
 - **Sin revisar** — hace más días de los que configuraste.
-- **Por facturar** — informe hecho y falta facturar. Plata en la calle.
+- **Por facturar** — informe y cierre hechos y falta facturar algo. Plata en la calle.
 
 Lo urgente no necesita ficha propia: el orden por defecto de las tarjetas ya
 pone adelante lo vencido y lo abandonado.
 
+### Las facturas son dos, no una
+
+A veces el informe y su cierre se facturan juntos, pero muchas veces no:
+primero se factura el informe apenas está hecho, y más adelante — cuando RUS
+manda la orden de cerrar — se factura el cierre aparte, por otro monto. Para
+no perder el rastro de esa segunda factura, cada siniestro tiene **cuatro**
+pasos en vez de tres:
+
+**Informe → Factura del informe → Cierre → Factura del cierre**
+
+Se marcan tocándolos, en el orden que corresponda. Si un siniestro no tiene
+cierre por separado, alcanza con marcar los dos primeros (o los cuatro juntos,
+si preferís) — el sistema no obliga a nada, sólo recuerda lo que falta.
+
 ### Cuándo desaparece un siniestro
 
-Cuando marcás **Informe** y **Cierre**, o cuando marcás **Facturado**. Con
-cualquiera de los dos, la tarjeta se va de la página en el acto.
+Con **Informe** y **Cierre** marcados, el trabajo está hecho y la tarjeta se va
+de la lista de todos los días — pero a dónde va depende de la facturación:
 
-La diferencia es a dónde va:
+- **Falta facturar el informe, el cierre, o los dos** → queda visible en la
+  ficha **Por facturar** del tablero. Es plata que ya podés cobrar; no se
+  esconde. Ahí se queda hasta que factures lo que falta, así no se pierde el
+  rastro de una segunda factura que quedó pendiente.
+- **Ya está facturado el informe, y el cierre también si lo hubo** → recién
+  ahí sale de la vista del todo y queda guardado en **Configuración →
+  Terminados**.
 
-- **Informe + Cierre, sin facturar** → queda visible en la ficha **Por
-  facturar** del tablero. Es plata que ya podés cobrar; no se esconde.
-- **Facturado** → sale de la vista del todo y queda guardado en
-  **Configuración → Terminados**.
+Mientras no estén marcados **Informe** y **Cierre** los dos, el siniestro
+sigue en curso igual — aunque ya hayas facturado el informe. Facturar antes
+nunca lo saca de la lista antes de tiempo.
 
 **Nada se borra nunca.** En Configuración → Terminados podés buscar cualquiera
 y destildar el paso que corresponda para que vuelva a la lista. También los
@@ -80,9 +99,9 @@ también se considera terminado.
 
 **Cada tarjeta** muestra lo mínimo para decidir sin cansar la vista: número de
 siniestro (con botón para copiarlo), vehículo, si es de tercero o de asegurado,
-los tres pasos —**Informe → Cierre → Facturado**— que se marcan tocándolos, y
-una línea con las fechas. El vencimiento se lee solo: dice *Venció el* en rojo o
-*Vence el* según corresponda, sin cartelitos aparte.
+los cuatro pasos de arriba, y una línea con las fechas. El vencimiento se lee
+solo: dice *Venció el* en rojo o *Vence el* según corresponda, sin cartelitos
+aparte.
 
 Arriba a la derecha, una pastilla dice hace cuánto que no se mira: gris cuando
 está al día, ámbar cuando pasó el plazo configurado.
@@ -145,14 +164,17 @@ de revisión **no se pisan nunca**.
 
 ### Las marcas de la planilla sí se importan
 
-`INFORME`, `CIERRE` y `FACTURADO` se traen tal cual vienen del Excel. Eso es lo
-que hace que al importar los siniestros históricos queden a la vista sólo los
-que siguen realmente abiertos: los que ya tienen informe y cierre (facturados
-o no) entran directo a Por facturar o a Terminados, y no molestan.
+`INFORME` y `CIERRE` se traen tal cual vienen del Excel. La planilla vieja
+tenía una sola columna `FACTURADO`; si venía tildada, se traduce sola a las
+dos facturas nuevas (informe y cierre marcadas ambas), así los siniestros
+históricos que ya estaban cobrados no vuelven a pedir factura. Eso es lo que
+hace que al importar los siniestros históricos queden a la vista sólo los que
+siguen realmente abiertos: los que ya tienen informe y cierre entran directo a
+Por facturar (si falta algo por cobrar) o a Terminados, y no molestan.
 
 Si alguna vez hace falta empezar de cero, en **Configuración → Terminados** hay
 un botón para reabrirlos todos de una. No borra siniestros, ni notas, ni
-fechas de revisión: sólo esas tres marcas.
+fechas de revisión: sólo esas marcas.
 
 ---
 
