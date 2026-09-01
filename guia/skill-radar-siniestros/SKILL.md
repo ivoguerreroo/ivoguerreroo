@@ -1,4 +1,22 @@
-# Radar de Siniestros — Base de conocimiento para Claude
+---
+name: radar-siniestros
+description: >-
+  Explica como funciona por dentro el sistema "Radar de Siniestros" que usa
+  Walter Guerrero para el seguimiento de sus siniestros de Rio Uruguay Seguros
+  (RUS). Usar esta skill siempre que Walter, o quien sea que use la pagina,
+  tenga una duda sobre su funcionamiento, por ejemplo que pasa al marcar
+  Informe, Cierre o Facturado (por separado o combinados), por que un
+  siniestro desaparecio de la lista o no se movio cuando deberia, como
+  funciona el tablero de arriba y sus 5 fichas, que significan los colores de
+  urgencia de cada tarjeta y la pastilla de "hace cuanto no lo miro", como
+  decide el sistema si un siniestro es Tercero, Asegurado o CLEAS, que pasa
+  al importar un archivo con numeros repetidos, por que el buscador encuentra
+  cosas que los filtros no muestran, cuando aparece el boton de WhatsApp,
+  como funciona (y sus limites reales) el respaldo automatico por mail, o
+  donde quedan guardados los datos y que pasa si se pierden.
+---
+
+# Radar de Siniestros — Base de conocimiento
 
 Este documento describe, con precisión, cómo funciona por dentro el sistema
 "Radar de Siniestros" que usa **Walter Guerrero** para llevar el seguimiento
