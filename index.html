@@ -2226,7 +2226,8 @@ const FILTROS = {
                   const d = s._u.diasSinVer;
                   return d !== null && d > (s.categoria === 'tercero' ? ESTADO.ajustes.diasTercero : ESTADO.ajustes.diasGeneral);
                 } },
-  porfacturar:{ rotulo:'Por facturar',  pie:'cerrado, falta cobrar', clase:'avisa', prueba:s => etapaDe(s) === 'porfacturar' },
+  facturarinforme:{ rotulo:'Facturar informe', pie:'hecho, sin facturar', clase:'avisa', prueba:s => esMarca(s.informe) && !esMarca(s.facturadoInforme) },
+  facturarcierre: { rotulo:'Facturar cierre',  pie:'hecho, sin facturar', clase:'avisa', prueba:s => esMarca(s.cierre) && !esMarca(s.facturadoCierre) },
   urgentes:   { rotulo:'Urgentes',      pie:'atención ya',         oculto:true, clase:'critica', prueba:s => s._u.nivel === 'critico' },
   // Los facturados no van en el tablero: se llega a ellos desde Configuración.
   terminados: { rotulo:'Terminados',    pie:'todo facturado',      oculto:true, prueba:s => estaTerminado(s) },

@@ -9,7 +9,7 @@ description: >-
   combinados), por que un siniestro desaparecio de la lista o no se movio
   cuando deberia, por que a veces hay que facturar dos veces un mismo
   siniestro, como
-  funciona el tablero de arriba y sus 5 fichas, que significan los colores de
+  funciona el tablero de arriba y sus 6 fichas, que significan los colores de
   urgencia de cada tarjeta y la pastilla de "hace cuanto no lo miro", como
   decide el sistema si un siniestro es Tercero, Asegurado o CLEAS, que pasa
   al importar un archivo con numeros repetidos, por que el buscador encuentra
@@ -55,9 +55,9 @@ no marca los otros solos), y lo que hacen es:
 
 | Marcaste... | Qué pasa |
 |---|---|
-| Sólo **Informe** (sin Cierre) | El siniestro sigue en "En curso", a la vista. Esto no cambia aunque también se facture el informe: sin el Cierre marcado, nunca se considera terminado. |
-| **Informe + Factura del informe** (sin Cierre) | Sigue en "En curso" igual. Facturar el informe antes de tiempo **nunca** saca al siniestro de la lista — es exactamente lo que evita que desaparezca antes de que llegue (o no) la orden de cerrar. |
-| **Informe + Cierre**, con alguna factura pendiente | El siniestro **sale de "En curso"** — pero no se pierde: pasa a la ficha **"Por facturar"** del tablero, que sigue visible. Es la señal de "ya está resuelto, falta cobrar algo". Puede faltar la factura del informe, la del cierre, o las dos. |
+| Sólo **Informe** (sin factura, sin Cierre) | El siniestro sigue en "En curso", a la vista — **y además** aparece en la ficha **"Facturar informe"** del tablero, porque ya hay trabajo hecho para cobrar. No hace falta esperar al Cierre para que aparezca ahí: son dos recordatorios que conviven, no etapas excluyentes. |
+| **Informe + Factura del informe** (sin Cierre) | Sigue en "En curso" igual, y ya no aparece en "Facturar informe" (esa factura dejó de faltar). Facturar el informe antes de tiempo **nunca** saca al siniestro de la lista — es exactamente lo que evita que desaparezca antes de que llegue (o no) la orden de cerrar. |
+| **Informe + Cierre**, con alguna factura pendiente | El siniestro **sale de "En curso"** — pero no se pierde: aparece en **"Facturar informe"** y/o **"Facturar cierre"** del tablero, según cuál de las dos falte. Es la señal de "ya está resuelto, falta cobrar algo". |
 | **Informe + Cierre + las dos facturas** (o sólo la del informe, si ese siniestro nunca tuvo cierre por separado) | El siniestro **desaparece de la vista normal por completo**. Queda guardado en **Configuración → Terminados**. |
 
 Punto importante para no confundir a Walter: si un siniestro **nunca** tiene
@@ -94,7 +94,7 @@ cobrado no vuelve a pedir que se facture de nuevo.
 
 ---
 
-## 2. El tablero de arriba (los 5 recuadros)
+## 2. El tablero de arriba (los 6 recuadros)
 
 | Ficha | Qué cuenta |
 |---|---|
@@ -102,7 +102,14 @@ cobrado no vuelve a pedir que se facture de nuevo.
 | **Aseg. / CLEAS** | De los "en curso", los que son categoría Asegurado o CLEAS. |
 | **Terceros** | De los "en curso", los que son de terceros. |
 | **Sin revisar** | De los "en curso", los que hace más días de la cuenta que nadie los abre. El plazo se configura (por defecto 12 días para los comunes, 7 días para los de tercero — los de tercero se controlan más seguido porque son los que más se escapan). |
-| **Por facturar** | Informe **y** Cierre marcados, pero falta facturar el informe, el cierre, o los dos. Es la plata que ya se puede cobrar. |
+| **Facturar informe** | Informe marcado, pero todavía no esa factura. No espera al Cierre. |
+| **Facturar cierre** | Cierre marcado, pero todavía no esa factura. |
+
+**Importante:** "Facturar informe" y "Facturar cierre" **no son excluyentes
+con "En curso".** Un siniestro con sólo el Informe marcado (sin Cierre) sigue
+apareciendo en "En curso" **y** en "Facturar informe" al mismo tiempo — no es
+un semáforo de una sola etapa, son recordatorios que se leen juntos. Recién
+cuando también se marca Cierre el siniestro sale de "En curso" (ver sección 1).
 
 No están en el tablero, pero existen: **Urgentes** (los de mayor puntaje de
 urgencia — se llega ahí sólo internamente, el orden por defecto de las
@@ -136,8 +143,12 @@ Es el nivel de urgencia general del siniestro, calculado con un puntaje:
 - **Naranja** (atención, puntaje entre 28 y 69): alguna señal de que hay que
   mirarlo pronto, pero no es urgente todavía.
 - **Verde** (bien, puntaje menor a 28): tranquilo por ahora.
-- **Gris apagado** (terminado): ya está resuelto — sólo se ve en la sección
-  "Por facturar" o dentro de "Terminados", nunca en "En curso".
+- **Gris apagado**: el trabajo ya está hecho (Informe **y** Cierre marcados),
+  esté facturado o no. Se ve en "Facturar informe" / "Facturar cierre" (para
+  el que le falta cobrar) y en "Terminados", nunca en "En curso". Ojo: un
+  siniestro que aparece en "Facturar informe" pero **todavía no tiene Cierre
+  marcado** sigue con su color normal de urgencia (rojo/naranja/verde), no
+  gris — el gris llega recién cuando Informe y Cierre están los dos.
 
 ### Qué suma puntaje (de más a menos peso)
 
@@ -295,12 +306,18 @@ nada — siempre hace falta un clic en "Sincronizar".
 ## Dudas típicas (para responder rápido)
 
 **"Marqué Informe y Cierre y el siniestro no se movió de 'En curso'."**
-Eso no debería pasar — con Informe y Cierre marcados, como mínimo pasa a
-"Por facturar" (sigue visible, pero ya no en "En curso"). Fijate si de
-verdad quedaron los dos marcados (a veces uno se toca dos veces y termina
-desmarcado). Si los dos están marcados y sigue en "En curso" igual, buscalo
-por número y mirá el detalle — puede haber un motivo que no salta a la
-vista.
+Eso no debería pasar — con Informe y Cierre marcados, como mínimo aparece en
+"Facturar informe" y/o "Facturar cierre" (sigue visible ahí, pero ya no en
+"En curso"). Fijate si de verdad quedaron los dos marcados (a veces uno se
+toca dos veces y termina desmarcado). Si los dos están marcados y sigue en
+"En curso" igual, buscalo por número y mirá el detalle — puede haber un
+motivo que no salta a la vista.
+
+**"Marqué sólo el Informe y ya me aparece en 'Facturar informe', pero el
+siniestro sigue en 'En curso'. ¿Está bien eso?"**
+Sí, es lo esperado: "Facturar informe" no espera al Cierre, así que un
+siniestro puede estar en las dos fichas a la vez (ver sección 2). Recién sale
+de "En curso" cuando también se marca Cierre.
 
 **"Facturé el informe y el siniestro no desapareció de la lista."**
 Es lo esperado, no un error: mientras el Cierre no esté marcado, facturar
@@ -316,9 +333,10 @@ sin importar el filtro activo.
 Si el siniestro ya desapareció de la lista, andá a Configuración → "Ver
 los N terminados", buscá el número, y destildá la factura que corresponda
 (la del informe o la del cierre — se distinguen por la posición: la
-primera es la del informe, la segunda la del cierre). Vuelve solo a la
-lista, o a "Por facturar" si la otra factura ya estaba hecha. No se pierde
-nada.
+primera es la del informe, la segunda la del cierre). Como el trabajo
+(Informe y Cierre) sigue marcado, no vuelve a "En curso": reaparece en
+"Facturar informe" o "Facturar cierre", según cuál hayas destildado. No se
+pierde nada.
 
 **"¿Por qué este siniestro aparece más arriba que otro que venció antes?"**
 El orden por defecto no es sólo por fecha de vencimiento: combina varias

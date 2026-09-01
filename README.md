@@ -53,7 +53,13 @@ Vercel, abrir desde el celular o incluso abrir haciendo doble clic.
 - **Aseg. / CLEAS** — asegurado propio y convenio, en curso.
 - **Terceros** — los que más se escapan.
 - **Sin revisar** — hace más días de los que configuraste.
-- **Por facturar** — informe y cierre hechos y falta facturar algo. Plata en la calle.
+- **Facturar informe** — ya marcaste Informe pero todavía no esa factura.
+- **Facturar cierre** — ya marcaste Cierre pero todavía no esa factura.
+
+Estas dos últimas no esperan la una a la otra: apenas marcás Informe, ese
+siniestro puede aparecer en "Facturar informe" aunque el Cierre todavía ni
+empezó. Es la plata que ya podés cobrar, separada por cuál de las dos
+facturas es.
 
 Lo urgente no necesita ficha propia: el orden por defecto de las tarjetas ya
 pone adelante lo vencido y lo abandonado.
@@ -77,10 +83,11 @@ si preferís) — el sistema no obliga a nada, sólo recuerda lo que falta.
 Con **Informe** y **Cierre** marcados, el trabajo está hecho y la tarjeta se va
 de la lista de todos los días — pero a dónde va depende de la facturación:
 
-- **Falta facturar el informe, el cierre, o los dos** → queda visible en la
-  ficha **Por facturar** del tablero. Es plata que ya podés cobrar; no se
-  esconde. Ahí se queda hasta que factures lo que falta, así no se pierde el
-  rastro de una segunda factura que quedó pendiente.
+- **Falta facturar el informe, el cierre, o los dos** → queda visible en el
+  tablero, en **Facturar informe** y/o **Facturar cierre** según lo que
+  falte. Es plata que ya podés cobrar; no se esconde. Ahí se queda hasta que
+  factures lo que falta, así no se pierde el rastro de una segunda factura
+  que quedó pendiente.
 - **Ya está facturado el informe, y el cierre también si lo hubo** → recién
   ahí sale de la vista del todo y queda guardado en **Configuración →
   Terminados**.
@@ -170,7 +177,8 @@ dos facturas nuevas (informe y cierre marcadas ambas), así los siniestros
 históricos que ya estaban cobrados no vuelven a pedir factura. Eso es lo que
 hace que al importar los siniestros históricos queden a la vista sólo los que
 siguen realmente abiertos: los que ya tienen informe y cierre entran directo a
-Por facturar (si falta algo por cobrar) o a Terminados, y no molestan.
+Facturar informe / Facturar cierre (si falta algo por cobrar) o a Terminados,
+y no molestan.
 
 Si alguna vez hace falta empezar de cero, en **Configuración → Terminados** hay
 un botón para reabrirlos todos de una. No borra siniestros, ni notas, ni
