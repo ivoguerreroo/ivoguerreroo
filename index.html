@@ -2866,9 +2866,14 @@ const COLUMNAS_EXTRA = [
 const COLUMNAS_TELEFONOS = [['Siniestro','nro'], ['TELÉFONOS','telefono']];
 const COLUMNAS_RENDICION = [
   ['Fecha Insp.','fechaDeriv'], ['Fecha Cierre','fechaCierre'], ['N° Siniestro','nro'],
-  ['DOMINIO','dominio'], ['VEHICULO','vehiculo'], ['Asegurado -Tercero','categoria']
+  ['DOMINIO','dominio'], ['VEHICULO','vehiculo'], ['Asegurado -Tercero','_asegtercero']
 ];
 const SALIDA_CATEGORIA = { tercero:'3RO', cleas:'CLEAS', asegurado:'Asegurado', otro:'Otro', '':'' };
+// La planilla de rendición trae esa columna con validación de datos: sólo
+// acepta "Asegurado" o "Tercero" tal cual, nada de "3RO" ni "CLEAS". CLEAS
+// se manda como Asegurado (es un convenio, no un reclamo de tercero); lo que
+// no se pudo clasificar queda en blanco para que se elija a mano.
+const SALIDA_ASEGTERCERO = { tercero:'Tercero', cleas:'Asegurado', asegurado:'Asegurado', otro:'', '':'' };
 
 function filasParaExportar(lista, conRus, colsPersonalizadas){
   const cols = colsPersonalizadas || (conRus ? COLUMNAS_PLANILLA.concat(COLUMNAS_EXTRA) : COLUMNAS_PLANILLA);
@@ -2877,6 +2882,7 @@ function filasParaExportar(lista, conRus, colsPersonalizadas){
     filas.push(cols.map(par => {
       const campo = par[1];
       if (campo === 'categoria') return SALIDA_CATEGORIA[s.categoria] || '';
+      if (campo === '_asegtercero') return SALIDA_ASEGTERCERO[s.categoria] || '';
       if (campo === '_revision') return s.ultimaRevision ? desdeISO(s.ultimaRevision.slice(0,10)) || '' : '';
       if (campo === '_facturado') return facturacionCompleta(s) ? 'X' : '';
       if (campo === 'nro') return /^\d+$/.test(s.nro) ? Number(s.nro) : s.nro;
