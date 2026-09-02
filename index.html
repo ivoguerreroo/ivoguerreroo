@@ -1637,6 +1637,7 @@ const CAMPOS = {
   facturadoInforme:{ rotulo:'Factura del informe', grupo:'propio', marca:true },
   cierre:       { rotulo:'Cierre',               grupo:'propio', marca:true },
   facturadoCierre: { rotulo:'Factura del cierre',  grupo:'propio', marca:true },
+  enRendicion:  { rotulo:'En rendición',         grupo:'propio', marca:true },
   tramitador:   { rotulo:'Tramitador',           grupo:'propio' },
   km:           { rotulo:'KM',                   grupo:'propio' },
   fechaOfrec:   { rotulo:'Fecha de ofrecimiento',grupo:'propio', fecha:true },
@@ -1857,6 +1858,13 @@ function etapaDe(s){
   if (estaTerminado(s)) return 'terminado';
   if (trabajoCompleto(s)) return 'porfacturar';
   return 'activo';
+}
+
+/** Listo para entrar en la próxima exportación a la planilla de rendición:
+ *  alguna de las dos facturas ya está marcada, y todavía no salió en una
+ *  rendición anterior. */
+function pendienteRendicion(s){
+  return (esMarca(s.facturadoInforme) || esMarca(s.facturadoCierre)) && !esMarca(s.enRendicion);
 }
 
 const esMarca = v => {
@@ -2856,6 +2864,10 @@ const COLUMNAS_EXTRA = [
   ['Factura informe','facturadoInforme'], ['Factura cierre','facturadoCierre'], ['Mis notas','notas']
 ];
 const COLUMNAS_TELEFONOS = [['Siniestro','nro'], ['TELÉFONOS','telefono']];
+const COLUMNAS_RENDICION = [
+  ['Fecha Insp.','fechaDeriv'], ['Fecha Cierre','fechaCierre'], ['N° Siniestro','nro'],
+  ['DOMINIO','dominio'], ['VEHICULO','vehiculo'], ['Asegurado -Tercero','categoria']
+];
 const SALIDA_CATEGORIA = { tercero:'3RO', cleas:'CLEAS', asegurado:'Asegurado', otro:'Otro', '':'' };
 
 function filasParaExportar(lista, conRus, colsPersonalizadas){
@@ -2894,6 +2906,54 @@ async function exportarXLSX(lista, conRus, nombre, cols){
   } catch(e){ avisar('No pude armar el Excel: ' + e.message, 'mal'); }
 }
 
+/** Exporta lo que falta poner en la planilla de rendición (Fecha Insp.,
+ *  Fecha Cierre, N° Siniestro, Dominio, Vehículo, Asegurado/Tercero) y
+ *  marca esos siniestros como "En rendición" para que el próximo mes no
+ *  se repitan. Se puede deshacer con el aviso que aparece después. */
+async function exportarRendicion(){
+  const lista = ESTADO.siniestros.filter(pendienteRendicion);
+  if (!lista.length)
+    return avisar('No hay nada nuevo para la rendición: lo facturado ya está marcado como enviado.', 'mal');
+  try {
+    const bytes = await EscritorPlanillas.crearXLSX('Rendición', filasParaExportar(lista, false, COLUMNAS_RENDICION));
+    descargar('rendicion-' + selloFecha() + '.xlsx', bytes, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    const ahora = new Date().toISOString();
+    const nros = lista.map(s => s.nro);
+    lista.forEach(s => {
+      s.enRendicion = 'X';
+      s.actualizado = ahora;
+      anotar(s, 'rendicion', 'Salió en la exportación para rendición');
+    });
+    ESTADO.meta.ultimaRendicion = { nros, fecha: ahora };
+    guardar(); render(); mostrarExportar();
+    avisar('Bajé ' + lista.length + ' para la rendición y los marqué como ya enviados.', 'bien');
+    setTimeout(() => avisarDeshacerRendicion(), 500);
+  } catch(e){ avisar('No pude armar el Excel: ' + e.message, 'mal'); }
+}
+
+function avisarDeshacerRendicion(){
+  const caja = $('#avisos');
+  const el = document.createElement('div');
+  el.className = 'aviso';
+  el.innerHTML = '<span>¿Te equivocaste?</span>' +
+    '<button class="btn btn-chico" style="margin-left:4px">Deshacer</button>';
+  caja.appendChild(el);
+  while (caja.children.length > 3) caja.firstElementChild.remove();
+  el.querySelector('button').onclick = () => {
+    const lote = ESTADO.meta.ultimaRendicion;
+    let n = 0;
+    if (lote && lote.nros && lote.nros.length){
+      const idas = new Set(lote.nros);
+      ESTADO.siniestros.forEach(s => { if (idas.has(s.nro) && esMarca(s.enRendicion)) { s.enRendicion = ''; n++; } });
+      ESTADO.meta.ultimaRendicion = null;
+      guardar();
+    }
+    el.remove(); render();
+    avisar('Deshecho: ' + n + ' vuelven a estar disponibles para la próxima rendición', 'bien');
+  };
+  setTimeout(() => el.remove(), 12000);
+}
+
 function exportarCSV(lista, conRus, nombre){
   if (!lista.length) return avisar('No hay nada para exportar con ese filtro.', 'mal');
   const filas = filasParaExportar(lista, conRus).map(f => f.map(v => {
@@ -2908,6 +2968,7 @@ function exportarCSV(lista, conRus, nombre){
 
 function mostrarExportar(){
   const visibles = listaVisible();
+  const cantRendicion = ESTADO.siniestros.filter(pendienteRendicion).length;
 
   $('#cuerpoExportar').innerHTML =
     '<div class="bloque"><div class="bloque-tit">Todos los siniestros (' + ESTADO.siniestros.length + ')</div>' +
@@ -2918,6 +2979,15 @@ function mostrarExportar(){
       '</div></div>' +
     '<div class="bloque"><div class="bloque-tit">Lo que estás viendo (' + visibles.length + ')</div>' +
       '<button class="btn" style="width:100%" data-exportar="filtrado">' + icono('bajar') + 'Exportar sólo estos (.xlsx)</button></div>' +
+    '<div class="bloque"><div class="bloque-tit">Rendición mensual</div>' +
+      '<button class="btn" style="width:100%" data-exportar="rendicion"' + (cantRendicion ? '' : ' disabled') + '>' + icono('bajar') +
+      'Exportar para la planilla de rendición (' + cantRendicion + ')</button>' +
+      '<p style="font-size:12px;color:var(--texto-3);margin-top:7px">' +
+      'Trae Fecha Insp. (fecha de derivación), Fecha Cierre, N° Siniestro, Dominio, Vehículo y ' +
+      'Asegurado/Tercero de lo que tenga alguna factura marcada y todavía no hayas exportado — para ' +
+      'copiar y pegar en tu planilla de rendición. Al bajarlo, esos siniestros quedan marcados como ' +
+      '<b>"En rendición"</b> para que el próximo mes no salgan de nuevo (se puede deshacer justo ' +
+      'después, y desde Configuración se puede sacar a todos si hiciera falta).</p></div>' +
     '<div class="bloque"><div class="bloque-tit">Actualizar sólo teléfonos</div>' +
       '<button class="btn" style="width:100%" data-exportar="telefonos">' + icono('bajar') +
       'Exportar Siniestro + Teléfono (.xlsx)</button>' +
@@ -3163,6 +3233,17 @@ function mostrarAjustes(){
       'aparece en la lista de todos los días. Termina del todo — y aparece acá — cuando está facturado ' +
       'el informe, y el cierre también si lo hubo. Si alguno salió sin querer, entrá acá, buscalo y ' +
       'destildá el paso que corresponda. No se borra nunca nada.</p></div>' +
+    '<div class="bloque"><div class="bloque-tit">Rendición</div>' +
+      '<p style="font-size:12px;color:var(--texto-3)">' +
+      ESTADO.siniestros.filter(s => esMarca(s.enRendicion)).length +
+      ' siniestro' + (ESTADO.siniestros.filter(s => esMarca(s.enRendicion)).length===1?'':'s') +
+      ' marcado' + (ESTADO.siniestros.filter(s => esMarca(s.enRendicion)).length===1?'':'s') +
+      ' como ya incluido en una exportación para rendición.</p>' +
+      (ESTADO.siniestros.filter(s => esMarca(s.enRendicion)).length
+        ? '<button class="btn btn-peligro" style="width:100%;margin-top:3px" id="btnSacarRendicion">' +
+          icono('refrescar') + 'Sacarlos a todos de la rendición (' +
+          ESTADO.siniestros.filter(s => esMarca(s.enRendicion)).length + ')</button>'
+        : '') + '</div>' +
     bloqueRespaldo() +
     bloqueEspacio() +
     '<div class="bloque"><div class="bloque-tit">Cómo funciona</div>' +
@@ -3488,6 +3569,7 @@ function conectar(){
       if (que === 'todo-rus')  return exportarXLSX(ESTADO.siniestros, true,  'planilla-siniestros-completa-' + sello + '.xlsx');
       if (que === 'todo-csv')  return exportarCSV(ESTADO.siniestros, false, 'planilla-siniestros-' + sello + '.csv');
       if (que === 'filtrado')  return exportarXLSX(listaVisible(), true, 'siniestros-filtrados-' + sello + '.xlsx');
+      if (que === 'rendicion') return exportarRendicion();
       if (que === 'telefonos') return exportarXLSX(ESTADO.siniestros, false, 'telefonos-' + sello + '.xlsx', COLUMNAS_TELEFONOS);
       if (que === 'json'){
         descargar('respaldo-siniestros-' + sello + '.json', JSON.stringify(compactar(ESTADO, false), null, 1), 'application/json');
@@ -3527,6 +3609,16 @@ function conectar(){
       });
       guardar(); mostrarAjustes(); render();
       avisar('Listo, reabrí ' + tocados + '. Volvieron todos a la lista.', 'bien');
+      return;
+    }
+    if (t.closest('#btnSacarRendicion')){
+      const cuantos = ESTADO.siniestros.filter(s => esMarca(s.enRendicion)).length;
+      if (!confirm('Voy a sacar a los ' + cuantos + ' siniestros de la rendición, así vuelven a salir la ' +
+                   'próxima vez que exportes para la planilla de rendición.\n\n' +
+                   'No se toca nada más: ni informe, ni cierre, ni facturas. ¿Seguimos?')) return;
+      ESTADO.siniestros.forEach(s => { if (esMarca(s.enRendicion)) s.enRendicion = ''; });
+      guardar(); mostrarAjustes(); render();
+      avisar('Listo, los ' + cuantos + ' vuelven a estar disponibles.', 'bien');
       return;
     }
     if (t.closest('#btnVerFacturados')){
