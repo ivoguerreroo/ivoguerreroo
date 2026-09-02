@@ -1676,12 +1676,37 @@ table.mapeo .muestra{color:var(--texto-3);font-size:12px;overflow:hidden;text-ov
     var hojaXml = await zip.texto(rutaHoja);
     if (hojaXml == null) throw new Error('No encontré la hoja principal dentro del archivo.');
 
+    // Los números de siniestro ya puestos pueden estar guardados de
+    // cualquier forma según qué programa guardó el archivo por última vez:
+    // como texto suelto (así los escribe este mismo sistema), como texto
+    // "compartido" (así los deja Google Sheets al volver a guardar), o
+    // directamente como número. Hay que poder leer los tres.
+    var compartidos = [];
+    var ssXml = await zip.texto('xl/sharedStrings.xml');
+    if (ssXml) {
+      var trozosSS = ssXml.split('<si');
+      for (var iss = 1; iss < trozosSS.length; iss++) {
+        var txtSS = '', reTss = /<t[^>]*>([\s\S]*?)<\/t>/g, mtss;
+        while ((mtss = reTss.exec(trozosSS[iss]))) txtSS += mtss[1];
+        compartidos.push(txtSS);
+      }
+    }
+
     function textoDeCelda(filaTexto, ref) {
-      var m = new RegExp('<c r="' + ref + '"[^>]*>([\\s\\S]*?)<\\/c>').exec(filaTexto);
+      var m = new RegExp('<c r="' + ref + '"([^>]*)(?:\\/>|>([\\s\\S]*?)<\\/c>)').exec(filaTexto);
       if (!m) return '';
-      var t = '', reT = /<t[^>]*>([\s\S]*?)<\/t>/g, mt;
-      while ((mt = reT.exec(m[1]))) t += mt[1];
-      return t;
+      var tipo = /\st="([^"]*)"/.exec(m[1] || '');
+      tipo = tipo ? tipo[1] : '';
+      var dentro = m[2] || '';
+      if (tipo === 'inlineStr') {
+        var t = '', reT = /<t[^>]*>([\s\S]*?)<\/t>/g, mt;
+        while ((mt = reT.exec(dentro))) t += mt[1];
+        return t;
+      }
+      var mv = /<v[^>]*>([\s\S]*?)<\/v>/.exec(dentro);
+      if (!mv) return '';
+      if (tipo === 's') return compartidos[parseInt(mv[1], 10)] || '';
+      return mv[1]; // número, o t="str" (resultado de fórmula)
     }
 
     // Hasta dónde esta planilla ya tiene filas completadas (de una vez
