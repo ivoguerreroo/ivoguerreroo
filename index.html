@@ -475,6 +475,7 @@ tr.n-listo{--tono:var(--borde-fuerte)} tr.n-listo{opacity:.7}
 .aviso-caja.ok{background:var(--ok-suave);border:1px solid color-mix(in srgb,var(--ok) 25%,transparent)}
 .aviso-caja.ojo{background:var(--aviso-suave);border:1px solid color-mix(in srgb,var(--aviso) 25%,transparent)}
 .aviso-caja.mal{background:var(--peligro-suave);border:1px solid color-mix(in srgb,var(--peligro) 25%,transparent)}
+.aviso-caja.mal{background:var(--peligro-suave);border:1px solid color-mix(in srgb,var(--peligro) 25%,transparent)}
 
 table.mapeo{width:100%;border-collapse:collapse;font-size:13px}
 table.mapeo th{text-align:left;padding:7px 9px;font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--texto-3);border-bottom:1px solid var(--borde)}
@@ -693,6 +694,17 @@ table.mapeo .muestra{color:var(--texto-3);font-size:12px;overflow:hidden;text-ov
     <div class="m-pie">
       <button class="btn" id="btnQuedarme">Quedarme</button>
       <button class="btn btn-principal" id="btnSalir">Salir</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== repetidos al completar la planilla de rendición ===== -->
+<div class="velo" id="veloDuplicados" role="alertdialog" aria-modal="true" style="z-index:85">
+  <div class="modal" style="max-width:420px">
+    <div class="m-cabecera"><h2 style="color:var(--peligro)">No se pudieron agregar</h2></div>
+    <div class="m-cuerpo" id="cuerpoDuplicados"></div>
+    <div class="m-pie">
+      <button class="btn btn-principal" data-cerrar="veloDuplicados">Entendido</button>
     </div>
   </div>
 </div>
@@ -1621,16 +1633,26 @@ table.mapeo .muestra{color:var(--texto-3);font-size:12px;overflow:hidden;text-ov
   /** Completa filas en un .xlsx real ya existente (la planilla de rendición
    *  mensual, tal cual la baja Walter) sin tocar nada más del archivo: ni
    *  las fórmulas, ni los desplegables, ni la otra hoja (Grilla de
-   *  Honorarios), ni las imágenes. Sólo escribe en celdas que ya están
-   *  vacías, a partir de la fila `filaInicio` (7 por defecto, debajo del
-   *  encabezado de esa planilla), en las columnas A a F: Fecha Insp.,
-   *  Fecha Cierre, N° Siniestro, Dominio, Vehículo, Asegurado/Tercero.
-   *  Si no hay lugar preparado, o una celda ya tiene algo, tira un error
-   *  en vez de arriesgarse a romper o pisar algo del archivo real. */
+   *  Honorarios), ni las imágenes. En las columnas A a F (Fecha Insp.,
+   *  Fecha Cierre, N° Siniestro, Dominio, Vehículo, Asegurado/Tercero):
+   *
+   *  - Primero busca, desde `filaInicio` (7 por defecto), hasta dónde ya
+   *    hay filas completadas (de una exportación anterior sobre este mismo
+   *    archivo) y sigue justo después — así se puede completar la misma
+   *    planilla varias veces sin perder lo que ya tenía.
+   *  - Cualquier siniestro que ya figure en alguna de esas filas anteriores
+   *    se salta (no se agrega de nuevo) y queda listado en `duplicados`.
+   *  - El resto se escribe en las filas vacías siguientes y queda listado
+   *    en `escritos`.
+   *
+   *  Si una celda que debería estar vacía no lo está, o si no hay lugar
+   *  preparado para todo lo que hace falta escribir, tira un error en vez
+   *  de arriesgarse a romper o pisar algo del archivo real. */
   async function completarRendicion(bytesOriginal, filas, opciones) {
     opciones = opciones || {};
     var filaInicio = opciones.filaInicio || 7;
     var columnas = ['A', 'B', 'C', 'D', 'E', 'F'];
+    var colSiniestro = 2; // C: N° Siniestro
     var atributo = raiz.LectorPlanillas.atributo;
 
     var zip = await raiz.LectorPlanillas.abrirZIP(bytesOriginal);
@@ -1654,13 +1676,41 @@ table.mapeo .muestra{color:var(--texto-3);font-size:12px;overflow:hidden;text-ov
     var hojaXml = await zip.texto(rutaHoja);
     if (hojaXml == null) throw new Error('No encontré la hoja principal dentro del archivo.');
 
+    function textoDeCelda(filaTexto, ref) {
+      var m = new RegExp('<c r="' + ref + '"[^>]*>([\\s\\S]*?)<\\/c>').exec(filaTexto);
+      if (!m) return '';
+      var t = '', reT = /<t[^>]*>([\s\S]*?)<\/t>/g, mt;
+      while ((mt = reT.exec(m[1]))) t += mt[1];
+      return t;
+    }
+
+    // Hasta dónde esta planilla ya tiene filas completadas (de una vez
+    // anterior): la primera con la columna de Siniestro vacía es donde hay
+    // que seguir. De paso, junta los números ya puestos para no repetirlos.
+    var existentes = {};
+    var filaLibre = filaInicio;
+    var topeBusqueda = filaInicio + 2000;
+    while (filaLibre < topeBusqueda) {
+      var reFilaBusca = new RegExp('<row r="' + filaLibre + '"[^>]*>[\\s\\S]*?<\\/row>');
+      var mFilaBusca = reFilaBusca.exec(hojaXml);
+      if (!mFilaBusca) break; // se acabaron las filas que la planilla trae preparadas
+      var nroYaPuesto = textoDeCelda(mFilaBusca[0], columnas[colSiniestro] + filaLibre);
+      if (!nroYaPuesto) break; // primera fila libre
+      existentes[nroYaPuesto] = true;
+      filaLibre++;
+    }
+
+    var escritos = [], duplicados = [];
     for (var f = 0; f < filas.length; f++) {
-      var nroFila = filaInicio + f;
+      var nroSiniestro = String(filas[f][colSiniestro] || '');
+      if (nroSiniestro && existentes[nroSiniestro]) { duplicados.push(nroSiniestro); continue; }
+
+      var nroFila = filaLibre;
       var reFila = new RegExp('<row r="' + nroFila + '"[^>]*>[\\s\\S]*?<\\/row>');
       var mFila = reFila.exec(hojaXml);
       if (!mFila)
-        throw new Error('La planilla no tiene tantas filas preparadas: necesito ' + filas.length +
-          ' y sólo encontré lugar para ' + f + '. Revisá que sea la planilla del mes, en blanco.');
+        throw new Error('La planilla no tiene más filas preparadas: llegué a la fila ' + nroFila +
+          ' y todavía faltaban ' + (filas.length - f) + ' por escribir.');
 
       var filaNueva = mFila[0];
       for (var c = 0; c < columnas.length; c++) {
@@ -1676,6 +1726,9 @@ table.mapeo .muestra{color:var(--texto-3);font-size:12px;overflow:hidden;text-ov
         filaNueva = filaNueva.slice(0, mCelda.index) + celdaNueva + filaNueva.slice(mCelda.index + mCelda[0].length);
       }
       hojaXml = hojaXml.slice(0, mFila.index) + filaNueva + hojaXml.slice(mFila.index + mFila[0].length);
+      if (nroSiniestro) existentes[nroSiniestro] = true;
+      escritos.push(nroSiniestro);
+      filaLibre++;
     }
 
     var entradas = [];
@@ -1685,7 +1738,8 @@ table.mapeo .muestra{color:var(--texto-3);font-size:12px;overflow:hidden;text-ov
       var datos = nombre === rutaHoja ? codificar(hojaXml) : await zip.extraer(nombre);
       entradas.push({ nombre: nombre, datos: datos });
     }
-    return await armarZIP(entradas);
+    var bytes = escritos.length ? await armarZIP(entradas) : null;
+    return { bytes: bytes, escritos: escritos, duplicados: duplicados };
   }
 
   raiz.EscritorPlanillas = { crearXLSX: crearXLSX, armarZIP: armarZIP, completarRendicion: completarRendicion };
@@ -3056,13 +3110,40 @@ async function completarPlanillaRendicion(archivo){
       formatearFecha(s.fechaDeriv), formatearFecha(s.fechaCierre), s.nro,
       s.dominio || '', s.vehiculo || '', SALIDA_ASEGTERCERO[s.categoria] || ''
     ]);
-    const bytesResultado = await EscritorPlanillas.completarRendicion(bytesOriginal, filas);
+    // completarRendicion sabe seguir después de lo que esa planilla ya
+    // tenía completado (de una vez anterior), y separa lo que pudo agregar
+    // de lo que ya estaba repetido ahí.
+    const res = await EscritorPlanillas.completarRendicion(bytesOriginal, filas);
+
+    if (res.duplicados.length) mostrarDuplicadosRendicion(res.duplicados);
+
+    if (!res.escritos.length){
+      avisar('No agregué nada: ' + res.duplicados.length + ' ya estaban en esa planilla.', 'mal');
+      return;
+    }
+
     const nombreSalida = (archivo.name || 'rendicion.xlsx').replace(/\.xlsx$/i, '') + ' - completado.xlsx';
-    descargar(nombreSalida, bytesResultado, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-    marcarRendicion(lista);
-    avisar('Completé ' + lista.length + ' filas directo en tu planilla y los marqué como ya enviados.', 'bien');
+    descargar(nombreSalida, res.bytes, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    const escritosSet = new Set(res.escritos);
+    marcarRendicion(lista.filter(s => escritosSet.has(s.nro)));
+    avisar('Completé ' + res.escritos.length + ' fila' + (res.escritos.length===1?'':'s') +
+      ' directo en tu planilla y los marqué como ya enviados' +
+      (res.duplicados.length ? ' (' + res.duplicados.length + ' ya estaban, no los repetí).' : '.'), 'bien');
     setTimeout(() => avisarDeshacerRendicion(), 500);
   } catch(e){ avisar('No pude completar tu planilla: ' + e.message, 'mal'); }
+}
+
+/** El cartel rojo, centrado y que no se cierra solo, para cuando alguno de
+ *  los siniestros que se querían agregar ya estaba en esa misma planilla
+ *  (de una exportación anterior sobre el mismo archivo). */
+function mostrarDuplicadosRendicion(nros){
+  $('#cuerpoDuplicados').innerHTML =
+    '<div class="aviso-caja mal">' + icono('alerta') +
+    '<div><b>No se ' + (nros.length === 1 ? 'pudo agregar este siniestro' : 'pudieron agregar estos ' + nros.length + ' siniestros') +
+    '</b> porque ya ' + (nros.length === 1 ? 'está' : 'están') + ' cargado' + (nros.length === 1 ? '' : 's') +
+    ' en esa planilla (en una fila de más arriba). No se tocó nada ahí.</div></div>' +
+    '<div class="lista-nros">' + nros.map(n => '<span class="nro-pastilla doble">' + esc(n) + '</span>').join('') + '</div>';
+  abrirVelo('veloDuplicados');
 }
 
 function avisarDeshacerRendicion(){
