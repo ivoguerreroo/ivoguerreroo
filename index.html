@@ -1440,7 +1440,9 @@ table.mapeo .muestra{color:var(--texto-3);font-size:12px;overflow:hidden;text-ov
   raiz.LectorPlanillas = {
     leerArchivo: leerArchivo,
     leerDelimitado: leerDelimitado,
-    leerXLSX: leerXLSX
+    leerXLSX: leerXLSX,
+    abrirZIP: abrirZIP,
+    atributo: atributo
   };
 })(typeof globalThis !== 'undefined' ? globalThis : window);
 /* ============================================================
@@ -1616,7 +1618,77 @@ table.mapeo .muestra{color:var(--texto-3);font-size:12px;overflow:hidden;text-ov
     return await armarZIP(entradas);
   }
 
-  raiz.EscritorPlanillas = { crearXLSX: crearXLSX, armarZIP: armarZIP };
+  /** Completa filas en un .xlsx real ya existente (la planilla de rendición
+   *  mensual, tal cual la baja Walter) sin tocar nada más del archivo: ni
+   *  las fórmulas, ni los desplegables, ni la otra hoja (Grilla de
+   *  Honorarios), ni las imágenes. Sólo escribe en celdas que ya están
+   *  vacías, a partir de la fila `filaInicio` (7 por defecto, debajo del
+   *  encabezado de esa planilla), en las columnas A a F: Fecha Insp.,
+   *  Fecha Cierre, N° Siniestro, Dominio, Vehículo, Asegurado/Tercero.
+   *  Si no hay lugar preparado, o una celda ya tiene algo, tira un error
+   *  en vez de arriesgarse a romper o pisar algo del archivo real. */
+  async function completarRendicion(bytesOriginal, filas, opciones) {
+    opciones = opciones || {};
+    var filaInicio = opciones.filaInicio || 7;
+    var columnas = ['A', 'B', 'C', 'D', 'E', 'F'];
+    var atributo = raiz.LectorPlanillas.atributo;
+
+    var zip = await raiz.LectorPlanillas.abrirZIP(bytesOriginal);
+
+    var wbXml = await zip.texto('xl/workbook.xml') || '';
+    var relsXml = await zip.texto('xl/_rels/workbook.xml.rels') || '';
+    var relaciones = {};
+    var reRel = /<Relationship\b[^>]*>/g, mr;
+    while ((mr = reRel.exec(relsXml))) relaciones[atributo(mr[0], 'Id')] = atributo(mr[0], 'Target');
+
+    var rutaHoja = null;
+    var reSh = /<sheet\b[^>]*>/g, ms;
+    while ((ms = reSh.exec(wbXml))) {
+      var rid = atributo(ms[0], 'r:id') || atributo(ms[0], 'id');
+      var destino = relaciones[rid] || '';
+      if (destino && destino.charAt(0) !== '/') destino = 'xl/' + destino.replace(/^\.?\//, '');
+      if (!rutaHoja) rutaHoja = destino.replace(/^\//, ''); // la primera hoja del libro
+    }
+    if (!rutaHoja) rutaHoja = 'xl/worksheets/sheet1.xml';
+
+    var hojaXml = await zip.texto(rutaHoja);
+    if (hojaXml == null) throw new Error('No encontré la hoja principal dentro del archivo.');
+
+    for (var f = 0; f < filas.length; f++) {
+      var nroFila = filaInicio + f;
+      var reFila = new RegExp('<row r="' + nroFila + '"[^>]*>[\\s\\S]*?<\\/row>');
+      var mFila = reFila.exec(hojaXml);
+      if (!mFila)
+        throw new Error('La planilla no tiene tantas filas preparadas: necesito ' + filas.length +
+          ' y sólo encontré lugar para ' + f + '. Revisá que sea la planilla del mes, en blanco.');
+
+      var filaNueva = mFila[0];
+      for (var c = 0; c < columnas.length; c++) {
+        var valor = filas[f][c];
+        if (valor === '' || valor === null || valor === undefined) continue;
+        var ref = columnas[c] + nroFila;
+        var mCelda = new RegExp('<c r="' + ref + '"([^>]*?)\\/>').exec(filaNueva);
+        if (!mCelda) mCelda = new RegExp('<c r="' + ref + '"([^>]*?)>\\s*<\\/c>').exec(filaNueva);
+        if (!mCelda)
+          throw new Error('La celda ' + ref + ' de tu planilla no está vacía como esperaba — no toqué nada ahí, para no pisar algo tuyo.');
+        var celdaNueva = '<c r="' + ref + '"' + (mCelda[1] || '') + ' t="inlineStr"><is><t xml:space="preserve">' +
+          escapar(String(valor)) + '</t></is></c>';
+        filaNueva = filaNueva.slice(0, mCelda.index) + celdaNueva + filaNueva.slice(mCelda.index + mCelda[0].length);
+      }
+      hojaXml = hojaXml.slice(0, mFila.index) + filaNueva + hojaXml.slice(mFila.index + mFila[0].length);
+    }
+
+    var entradas = [];
+    var nombres = Object.keys(zip.archivos);
+    for (var n = 0; n < nombres.length; n++) {
+      var nombre = nombres[n];
+      var datos = nombre === rutaHoja ? codificar(hojaXml) : await zip.extraer(nombre);
+      entradas.push({ nombre: nombre, datos: datos });
+    }
+    return await armarZIP(entradas);
+  }
+
+  raiz.EscritorPlanillas = { crearXLSX: crearXLSX, armarZIP: armarZIP, completarRendicion: completarRendicion };
 })(typeof globalThis !== 'undefined' ? globalThis : window);
 
 /* ============================================================
@@ -2927,12 +2999,31 @@ async function exportarXLSX(lista, conRus, nombre, cols){
   } catch(e){ avisar('No pude armar el Excel: ' + e.message, 'mal'); }
 }
 
+/** Marca cada siniestro de la lista como ya salido en una rendición —
+ *  informe y cierre por separado, sólo la parte que de verdad estaba
+ *  pendiente — y deja anotado el lote para poder deshacerlo. Común a las
+ *  dos formas de exportar (el Excel chico y el que completa la planilla
+ *  real). */
+function marcarRendicion(lista){
+  const ahora = new Date().toISOString();
+  const nrosInforme = [], nrosCierre = [];
+  lista.forEach(s => {
+    if (pendienteRendicionInforme(s)){ s.rendicionInforme = 'X'; nrosInforme.push(s.nro); }
+    if (pendienteRendicionCierre(s)){ s.rendicionCierre = 'X'; nrosCierre.push(s.nro); }
+    s.actualizado = ahora;
+    anotar(s, 'rendicion', 'Salió en la exportación para rendición');
+  });
+  ESTADO.meta.ultimaRendicion = { nrosInforme, nrosCierre, fecha: ahora };
+  guardar(); render(); mostrarExportar();
+}
+
 /** Exporta lo que falta poner en la planilla de rendición (Fecha Insp.,
- *  Fecha Cierre, N° Siniestro, Dominio, Vehículo, Asegurado/Tercero): todo
- *  siniestro con el Informe o el Cierre recién marcado. Cada parte queda
- *  registrada por separado (rendicionInforme / rendicionCierre), así que si
- *  el cierre llega un mes después, ese mismo siniestro puede volver a salir
- *  sólo por esa parte. Se puede deshacer con el aviso que aparece después. */
+ *  Fecha Cierre, N° Siniestro, Dominio, Vehículo, Asegurado/Tercero) en un
+ *  Excel chico y aparte, para copiar y pegar a mano: todo siniestro con el
+ *  Informe o el Cierre recién marcado. Cada parte queda registrada por
+ *  separado (rendicionInforme / rendicionCierre), así que si el cierre
+ *  llega un mes después, ese mismo siniestro puede volver a salir sólo por
+ *  esa parte. Se puede deshacer con el aviso que aparece después. */
 async function exportarRendicion(){
   const lista = ESTADO.siniestros.filter(pendienteRendicion);
   if (!lista.length)
@@ -2940,19 +3031,38 @@ async function exportarRendicion(){
   try {
     const bytes = await EscritorPlanillas.crearXLSX('Rendición', filasParaExportar(lista, false, COLUMNAS_RENDICION));
     descargar('rendicion-' + selloFecha() + '.xlsx', bytes, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-    const ahora = new Date().toISOString();
-    const nrosInforme = [], nrosCierre = [];
-    lista.forEach(s => {
-      if (pendienteRendicionInforme(s)){ s.rendicionInforme = 'X'; nrosInforme.push(s.nro); }
-      if (pendienteRendicionCierre(s)){ s.rendicionCierre = 'X'; nrosCierre.push(s.nro); }
-      s.actualizado = ahora;
-      anotar(s, 'rendicion', 'Salió en la exportación para rendición');
-    });
-    ESTADO.meta.ultimaRendicion = { nrosInforme, nrosCierre, fecha: ahora };
-    guardar(); render(); mostrarExportar();
+    marcarRendicion(lista);
     avisar('Bajé ' + lista.length + ' para la rendición y los marqué como ya enviados.', 'bien');
     setTimeout(() => avisarDeshacerRendicion(), 500);
   } catch(e){ avisar('No pude armar el Excel: ' + e.message, 'mal'); }
+}
+
+/** Completa directamente la planilla real de rendición de ese mes (la que
+ *  sube Walter, con sus fórmulas, desplegables y la hoja de Grilla de
+ *  Honorarios): le escribe las mismas seis columnas en las filas vacías que
+ *  ya tiene preparadas, y no toca nada más del archivo. Si algo no encaja
+ *  (una celda que no está vacía, o pocas filas preparadas), no baja nada:
+ *  mejor avisar que entregar un archivo a medio completar. */
+async function completarPlanillaRendicion(archivo){
+  const lista = ESTADO.siniestros.filter(pendienteRendicion);
+  if (!lista.length)
+    return avisar('No hay nada nuevo para la rendición: informe y cierre ya están marcados como enviados.', 'mal');
+  try {
+    const bytesOriginal = new Uint8Array(await archivo.arrayBuffer());
+    // A mano y no vía filasParaExportar: esa función devuelve objetos Date
+    // para las columnas de fecha (pensado para el escritor de Excel, que
+    // sabe convertirlos), y acá necesitamos el texto "dd/mm/aaaa" tal cual.
+    const filas = lista.map(s => [
+      formatearFecha(s.fechaDeriv), formatearFecha(s.fechaCierre), s.nro,
+      s.dominio || '', s.vehiculo || '', SALIDA_ASEGTERCERO[s.categoria] || ''
+    ]);
+    const bytesResultado = await EscritorPlanillas.completarRendicion(bytesOriginal, filas);
+    const nombreSalida = (archivo.name || 'rendicion.xlsx').replace(/\.xlsx$/i, '') + ' - completado.xlsx';
+    descargar(nombreSalida, bytesResultado, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    marcarRendicion(lista);
+    avisar('Completé ' + lista.length + ' filas directo en tu planilla y los marqué como ya enviados.', 'bien');
+    setTimeout(() => avisarDeshacerRendicion(), 500);
+  } catch(e){ avisar('No pude completar tu planilla: ' + e.message, 'mal'); }
 }
 
 function avisarDeshacerRendicion(){
@@ -3010,16 +3120,22 @@ function mostrarExportar(){
     '<div class="bloque"><div class="bloque-tit">Lo que estás viendo (' + visibles.length + ')</div>' +
       '<button class="btn" style="width:100%" data-exportar="filtrado">' + icono('bajar') + 'Exportar sólo estos (.xlsx)</button></div>' +
     '<div class="bloque"><div class="bloque-tit">Rendición mensual</div>' +
+      '<div style="display:flex;flex-direction:column;gap:7px">' +
+      '<button class="btn btn-principal" style="width:100%" id="btnCompletarRendicion"' + (cantRendicion ? '' : ' disabled') + '>' + icono('subir') +
+      'Completar mi planilla real (' + cantRendicion + ')</button>' +
       '<button class="btn" style="width:100%" data-exportar="rendicion"' + (cantRendicion ? '' : ' disabled') + '>' + icono('bajar') +
-      'Exportar para la planilla de rendición (' + cantRendicion + ')</button>' +
+      'O bajar sólo un Excel chico con esos datos (' + cantRendicion + ')</button>' +
+      '</div>' +
       '<p style="font-size:12px;color:var(--texto-3);margin-top:7px">' +
-      'Trae Fecha Insp. (fecha de derivación), Fecha Cierre, N° Siniestro, Dominio, Vehículo y ' +
-      'Asegurado/Tercero de todo lo que tenga <b>Informe o Cierre marcado y esa parte todavía sin ' +
-      'facturar</b> — para copiar y pegar en tu planilla de rendición y ahí facturarlo. El informe y ' +
-      'el cierre de un mismo siniestro pueden salir en meses distintos si el cierre llega después. Al ' +
-      'bajarlo, esos siniestros quedan marcados como ya incluidos para que el próximo mes no se ' +
-      'repitan (se puede deshacer justo después, y desde Configuración se puede sacar a todos si ' +
-      'hiciera falta).</p></div>' +
+      'Las dos opciones traen Fecha Insp. (fecha de derivación), Fecha Cierre, N° Siniestro, Dominio, ' +
+      'Vehículo y Asegurado/Tercero de todo lo que tenga <b>Informe o Cierre marcado y esa parte ' +
+      'todavía sin facturar</b>. "Completar mi planilla real" te pide el .xlsx del mes (por ejemplo ' +
+      'SEPTIEMBRE_2026.xlsx, en blanco) y te devuelve ese mismo archivo con esas filas ya escritas — ' +
+      'fórmulas, desplegables y la hoja de Grilla de Honorarios quedan intactos, listo para completar ' +
+      'el resto a mano. El informe y el cierre de un mismo siniestro pueden salir en meses distintos ' +
+      'si el cierre llega después. Al usar cualquiera de las dos, esos siniestros quedan marcados como ' +
+      'ya incluidos para que el próximo mes no se repitan (se puede deshacer justo después, y desde ' +
+      'Configuración se puede sacar a todos si hiciera falta).</p></div>' +
     '<div class="bloque"><div class="bloque-tit">Actualizar sólo teléfonos</div>' +
       '<button class="btn" style="width:100%" data-exportar="telefonos">' + icono('bajar') +
       'Exportar Siniestro + Teléfono (.xlsx)</button>' +
@@ -3659,6 +3775,7 @@ function conectar(){
       return;
     }
     if (t.closest('#btnRestaurar')) return $('#restaurar').click();
+    if (t.closest('#btnCompletarRendicion')) return $('#archivoRendicion').click();
     if (t.closest('#btnVincular'))    return vincularPlanilla();
     if (t.closest('#btnSincronizar')) return sincronizarPlanilla();
     if (t.closest('#btnDesvincular')) return desvincularPlanilla();
@@ -3704,6 +3821,18 @@ function conectar(){
       avisar('Restauré ' + d.siniestros.length + ' siniestros', 'bien');
     } catch(err){ avisar('No pude leer el respaldo: ' + err.message, 'mal'); }
     e.target.value = '';
+  };
+
+  /* completar la planilla real de rendición */
+  const entradaRendicion = document.createElement('input');
+  entradaRendicion.type = 'file'; entradaRendicion.accept = '.xlsx'; entradaRendicion.id = 'archivoRendicion';
+  entradaRendicion.className = 'oculto';
+  document.body.appendChild(entradaRendicion);
+  entradaRendicion.onchange = async e => {
+    const f = e.target.files[0];
+    e.target.value = '';
+    if (!f) return;
+    await completarPlanillaRendicion(f);
   };
 }
 
