@@ -1637,7 +1637,8 @@ const CAMPOS = {
   facturadoInforme:{ rotulo:'Factura del informe', grupo:'propio', marca:true },
   cierre:       { rotulo:'Cierre',               grupo:'propio', marca:true },
   facturadoCierre: { rotulo:'Factura del cierre',  grupo:'propio', marca:true },
-  enRendicion:  { rotulo:'En rendición',         grupo:'propio', marca:true },
+  rendicionInforme:{ rotulo:'En rendición (informe)', grupo:'propio', marca:true },
+  rendicionCierre: { rotulo:'En rendición (cierre)',  grupo:'propio', marca:true },
   tramitador:   { rotulo:'Tramitador',           grupo:'propio' },
   km:           { rotulo:'KM',                   grupo:'propio' },
   fechaOfrec:   { rotulo:'Fecha de ofrecimiento',grupo:'propio', fecha:true },
@@ -1860,11 +1861,18 @@ function etapaDe(s){
   return 'activo';
 }
 
+/** El informe y el cierre se pueden facturar en meses distintos (el cierre
+ *  a veces llega mucho después), así que cada uno lleva su propia marca de
+ *  "ya salió en una rendición" — si no, el cierre de un siniestro cuyo
+ *  informe ya se exportó nunca podría salir en un mes futuro. */
+function pendienteRendicionInforme(s){ return esMarca(s.informe) && !esMarca(s.rendicionInforme); }
+function pendienteRendicionCierre(s){ return esMarca(s.cierre) && !esMarca(s.rendicionCierre); }
+
 /** Listo para entrar en la próxima exportación a la planilla de rendición:
- *  alguna de las dos facturas ya está marcada, y todavía no salió en una
- *  rendición anterior. */
+ *  el informe está hecho, o el cierre está hecho, y esa parte todavía no
+ *  salió en una rendición anterior. */
 function pendienteRendicion(s){
-  return (esMarca(s.facturadoInforme) || esMarca(s.facturadoCierre)) && !esMarca(s.enRendicion);
+  return pendienteRendicionInforme(s) || pendienteRendicionCierre(s);
 }
 
 const esMarca = v => {
@@ -2913,24 +2921,27 @@ async function exportarXLSX(lista, conRus, nombre, cols){
 }
 
 /** Exporta lo que falta poner en la planilla de rendición (Fecha Insp.,
- *  Fecha Cierre, N° Siniestro, Dominio, Vehículo, Asegurado/Tercero) y
- *  marca esos siniestros como "En rendición" para que el próximo mes no
- *  se repitan. Se puede deshacer con el aviso que aparece después. */
+ *  Fecha Cierre, N° Siniestro, Dominio, Vehículo, Asegurado/Tercero): todo
+ *  siniestro con el Informe o el Cierre recién marcado. Cada parte queda
+ *  registrada por separado (rendicionInforme / rendicionCierre), así que si
+ *  el cierre llega un mes después, ese mismo siniestro puede volver a salir
+ *  sólo por esa parte. Se puede deshacer con el aviso que aparece después. */
 async function exportarRendicion(){
   const lista = ESTADO.siniestros.filter(pendienteRendicion);
   if (!lista.length)
-    return avisar('No hay nada nuevo para la rendición: lo facturado ya está marcado como enviado.', 'mal');
+    return avisar('No hay nada nuevo para la rendición: informe y cierre ya están marcados como enviados.', 'mal');
   try {
     const bytes = await EscritorPlanillas.crearXLSX('Rendición', filasParaExportar(lista, false, COLUMNAS_RENDICION));
     descargar('rendicion-' + selloFecha() + '.xlsx', bytes, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
     const ahora = new Date().toISOString();
-    const nros = lista.map(s => s.nro);
+    const nrosInforme = [], nrosCierre = [];
     lista.forEach(s => {
-      s.enRendicion = 'X';
+      if (pendienteRendicionInforme(s)){ s.rendicionInforme = 'X'; nrosInforme.push(s.nro); }
+      if (pendienteRendicionCierre(s)){ s.rendicionCierre = 'X'; nrosCierre.push(s.nro); }
       s.actualizado = ahora;
       anotar(s, 'rendicion', 'Salió en la exportación para rendición');
     });
-    ESTADO.meta.ultimaRendicion = { nros, fecha: ahora };
+    ESTADO.meta.ultimaRendicion = { nrosInforme, nrosCierre, fecha: ahora };
     guardar(); render(); mostrarExportar();
     avisar('Bajé ' + lista.length + ' para la rendición y los marqué como ya enviados.', 'bien');
     setTimeout(() => avisarDeshacerRendicion(), 500);
@@ -2948,9 +2959,15 @@ function avisarDeshacerRendicion(){
   el.querySelector('button').onclick = () => {
     const lote = ESTADO.meta.ultimaRendicion;
     let n = 0;
-    if (lote && lote.nros && lote.nros.length){
-      const idas = new Set(lote.nros);
-      ESTADO.siniestros.forEach(s => { if (idas.has(s.nro) && esMarca(s.enRendicion)) { s.enRendicion = ''; n++; } });
+    if (lote){
+      const idasInforme = new Set(lote.nrosInforme || []);
+      const idasCierre = new Set(lote.nrosCierre || []);
+      ESTADO.siniestros.forEach(s => {
+        let tocado = false;
+        if (idasInforme.has(s.nro) && esMarca(s.rendicionInforme)) { s.rendicionInforme = ''; tocado = true; }
+        if (idasCierre.has(s.nro) && esMarca(s.rendicionCierre)) { s.rendicionCierre = ''; tocado = true; }
+        if (tocado) n++;
+      });
       ESTADO.meta.ultimaRendicion = null;
       guardar();
     }
@@ -3210,6 +3227,7 @@ function bloqueEspacio(){
 function mostrarAjustes(){
   const a = ESTADO.ajustes;
   const dups = duplicadosGuardados();
+  const cantEnRendicion = ESTADO.siniestros.filter(s => esMarca(s.rendicionInforme) || esMarca(s.rendicionCierre)).length;
   $('#cuerpoAjustes').innerHTML =
     '<div class="bloque"><div class="bloque-tit">Avisarme cuando haga que no lo miro</div><div class="campos">' +
       '<div class="campo"><label>Siniestros comunes (días)</label>' +
@@ -3241,14 +3259,12 @@ function mostrarAjustes(){
       'destildá el paso que corresponda. No se borra nunca nada.</p></div>' +
     '<div class="bloque"><div class="bloque-tit">Rendición</div>' +
       '<p style="font-size:12px;color:var(--texto-3)">' +
-      ESTADO.siniestros.filter(s => esMarca(s.enRendicion)).length +
-      ' siniestro' + (ESTADO.siniestros.filter(s => esMarca(s.enRendicion)).length===1?'':'s') +
-      ' marcado' + (ESTADO.siniestros.filter(s => esMarca(s.enRendicion)).length===1?'':'s') +
-      ' como ya incluido en una exportación para rendición.</p>' +
-      (ESTADO.siniestros.filter(s => esMarca(s.enRendicion)).length
+      cantEnRendicion + ' siniestro' + (cantEnRendicion===1?'':'s') +
+      ' con el informe y/o el cierre marcado' + (cantEnRendicion===1?'':'s') +
+      ' como ya incluido' + (cantEnRendicion===1?'':'s') + ' en una exportación para rendición.</p>' +
+      (cantEnRendicion
         ? '<button class="btn btn-peligro" style="width:100%;margin-top:3px" id="btnSacarRendicion">' +
-          icono('refrescar') + 'Sacarlos a todos de la rendición (' +
-          ESTADO.siniestros.filter(s => esMarca(s.enRendicion)).length + ')</button>'
+          icono('refrescar') + 'Sacarlos a todos de la rendición (' + cantEnRendicion + ')</button>'
         : '') + '</div>' +
     bloqueRespaldo() +
     bloqueEspacio() +
@@ -3618,11 +3634,11 @@ function conectar(){
       return;
     }
     if (t.closest('#btnSacarRendicion')){
-      const cuantos = ESTADO.siniestros.filter(s => esMarca(s.enRendicion)).length;
+      const cuantos = ESTADO.siniestros.filter(s => esMarca(s.rendicionInforme) || esMarca(s.rendicionCierre)).length;
       if (!confirm('Voy a sacar a los ' + cuantos + ' siniestros de la rendición, así vuelven a salir la ' +
                    'próxima vez que exportes para la planilla de rendición.\n\n' +
                    'No se toca nada más: ni informe, ni cierre, ni facturas. ¿Seguimos?')) return;
-      ESTADO.siniestros.forEach(s => { if (esMarca(s.enRendicion)) s.enRendicion = ''; });
+      ESTADO.siniestros.forEach(s => { s.rendicionInforme = ''; s.rendicionCierre = ''; });
       guardar(); mostrarAjustes(); render();
       avisar('Listo, los ' + cuantos + ' vuelven a estar disponibles.', 'bien');
       return;
