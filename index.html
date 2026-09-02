@@ -2142,22 +2142,33 @@ function aplicarImportacion(cruce, opciones){
   });
 
   let actualizados = 0;
-  if (opciones.actualizarExistentes){
+  if (opciones.actualizarExistentes || opciones.soloTelefonos){
     const esDeRus = opciones.perfilId === 'rus';
     cruce.repetidos.forEach(r => {
       let cambio = false;
-      for (const campo in r.entrante){
-        if (campo.charAt(0) === '_' || campo === 'nro') continue;
-        const entra = r.entrante[campo];
-        if (!entra) continue;
-        const tiene = r.existente[campo] || '';
-        // RUS manda sobre sus propios campos; el resto sólo rellena huecos
-        // salvo que estemos importando la planilla propia, que sí es la fuente.
-        const puedePisar = (esDeRus && CAMPOS_RUS.includes(campo)) || (!esDeRus && opciones.perfilId === 'propia');
-        if (tiene && !puedePisar) continue;
-        if (String(tiene) === String(entra)) continue;
-        r.existente[campo] = entra;
-        cambio = true;
+      if (opciones.soloTelefonos){
+        // Modo restringido: pase lo que pase con el resto del archivo (aunque
+        // traiga otras columnas con datos), no se toca nada que no sea el
+        // teléfono. Ni siquiera pasa por la lógica de "quién puede pisar qué".
+        const entra = r.entrante.telefono;
+        if (entra && String(r.existente.telefono || '') !== String(entra)){
+          r.existente.telefono = entra;
+          cambio = true;
+        }
+      } else {
+        for (const campo in r.entrante){
+          if (campo.charAt(0) === '_' || campo === 'nro') continue;
+          const entra = r.entrante[campo];
+          if (!entra) continue;
+          const tiene = r.existente[campo] || '';
+          // RUS manda sobre sus propios campos; el resto sólo rellena huecos
+          // salvo que estemos importando la planilla propia, que sí es la fuente.
+          const puedePisar = (esDeRus && CAMPOS_RUS.includes(campo)) || (!esDeRus && opciones.perfilId === 'propia');
+          if (tiene && !puedePisar) continue;
+          if (String(tiene) === String(entra)) continue;
+          r.existente[campo] = entra;
+          cambio = true;
+        }
       }
       if (cambio){
         r.existente.actualizado = ahora;
@@ -2764,18 +2775,32 @@ function mostrarResultado(){
     '<label class="fila-previa" style="margin-top:14px">' +
       '<input type="checkbox" id="chkActualizar" checked>' +
       '<span class="fp-txt" style="color:var(--texto)">Actualizar los datos de los que ya estaban (vencimiento, estado, prioridad…)</span>' +
+    '</label>' +
+    '<label class="fila-previa">' +
+      '<input type="checkbox" id="chkSoloTelefonos">' +
+      '<span class="fp-txt" style="color:var(--texto)">Actualizar sólo el teléfono — no tocar informe, cierre, facturas, notas ni nada más</span>' +
     '</label>';
 
   $('#pieImportar').innerHTML =
     '<button class="btn izq" id="btnCopiarRepes">' + icono('copiar') + '<span class="texto-largo">Copiar los repetidos</span></button>' +
     '<button class="btn" id="btnVolverElegir">Otro archivo</button>' +
     '<button class="btn" id="btnAbrirMapeo">Revisar columnas</button>' +
-    '<button class="btn btn-principal" id="btnConfirmarImport">' +
-      (c.nuevos.length ? 'Agregar los ' + c.nuevos.length + ' que faltan' : 'Guardar cambios') + '</button>';
+    '<button class="btn btn-principal" id="btnConfirmarImport">' + rotuloConfirmar() + '</button>';
+}
+
+/** El texto del botón principal cambia si se eligió el modo "sólo teléfonos":
+ *  ahí no se agrega nada nuevo, sólo se actualiza ese campo en lo que ya está. */
+function rotuloConfirmar(){
+  if ($('#chkSoloTelefonos') && $('#chkSoloTelefonos').checked) return 'Actualizar teléfonos';
+  const n = cruceActual ? cruceActual.nuevos.length : 0;
+  return n ? 'Agregar los ' + n + ' que faltan' : 'Guardar cambios';
 }
 
 function confirmarImportacion(){
-  const elegidos = cruceActual.nuevos.filter((_, i) => {
+  const soloTelefonos = $('#chkSoloTelefonos') ? $('#chkSoloTelefonos').checked : false;
+  // En modo "sólo teléfonos" no se agrega nada nuevo: es puramente para
+  // actualizar ese campo en siniestros que ya existen.
+  const elegidos = soloTelefonos ? [] : cruceActual.nuevos.filter((_, i) => {
     const chk = $('[data-nuevo="' + i + '"]');
     return !chk || chk.checked;
   });
@@ -2783,6 +2808,7 @@ function confirmarImportacion(){
   const res = aplicarImportacion(cruceActual, {
     nuevosElegidos: elegidos,
     actualizarExistentes: $('#chkActualizar') ? $('#chkActualizar').checked : true,
+    soloTelefonos,
     nombreArchivo: nombreActual,
     perfilId: reconocidoActual.perfil ? reconocidoActual.perfil.id : null
   });
@@ -2829,10 +2855,11 @@ const COLUMNAS_EXTRA = [
   ['Dueño','duenio'], ['Última revisión','_revision'],
   ['Factura informe','facturadoInforme'], ['Factura cierre','facturadoCierre'], ['Mis notas','notas']
 ];
+const COLUMNAS_TELEFONOS = [['Siniestro','nro'], ['TELÉFONOS','telefono']];
 const SALIDA_CATEGORIA = { tercero:'3RO', cleas:'CLEAS', asegurado:'Asegurado', otro:'Otro', '':'' };
 
-function filasParaExportar(lista, conRus){
-  const cols = conRus ? COLUMNAS_PLANILLA.concat(COLUMNAS_EXTRA) : COLUMNAS_PLANILLA;
+function filasParaExportar(lista, conRus, colsPersonalizadas){
+  const cols = colsPersonalizadas || (conRus ? COLUMNAS_PLANILLA.concat(COLUMNAS_EXTRA) : COLUMNAS_PLANILLA);
   const filas = [cols.map(c => c[0])];
   lista.forEach(s => {
     filas.push(cols.map(par => {
@@ -2858,10 +2885,10 @@ function descargar(nombre, datos, tipo){
 }
 const selloFecha = () => hoyISO().split('-').reverse().join('-');
 
-async function exportarXLSX(lista, conRus, nombre){
+async function exportarXLSX(lista, conRus, nombre, cols){
   if (!lista.length) return avisar('No hay nada para exportar con ese filtro.', 'mal');
   try {
-    const bytes = await EscritorPlanillas.crearXLSX('Siniestros', filasParaExportar(lista, conRus));
+    const bytes = await EscritorPlanillas.crearXLSX('Siniestros', filasParaExportar(lista, conRus, cols));
     descargar(nombre, bytes, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
     avisar('Listo: ' + lista.length + ' siniestros exportados', 'bien');
   } catch(e){ avisar('No pude armar el Excel: ' + e.message, 'mal'); }
@@ -2891,6 +2918,14 @@ function mostrarExportar(){
       '</div></div>' +
     '<div class="bloque"><div class="bloque-tit">Lo que estás viendo (' + visibles.length + ')</div>' +
       '<button class="btn" style="width:100%" data-exportar="filtrado">' + icono('bajar') + 'Exportar sólo estos (.xlsx)</button></div>' +
+    '<div class="bloque"><div class="bloque-tit">Actualizar sólo teléfonos</div>' +
+      '<button class="btn" style="width:100%" data-exportar="telefonos">' + icono('bajar') +
+      'Exportar Siniestro + Teléfono (.xlsx)</button>' +
+      '<p style="font-size:12px;color:var(--texto-3);margin-top:7px">' +
+      'Para cuando conseguís números en otro lado (por ejemplo en RUS) y querés cargarlos sin ' +
+      'tocar nada más: bajá este archivo con sólo esas dos columnas, completá o corregí los ' +
+      'teléfonos, y volvé a importarlo tildando <b>"Actualizar sólo el teléfono"</b>. No mueve ' +
+      'informe, cierre, facturas ni notas, aunque hayan cambiado desde que bajaste este archivo.</p></div>' +
     '<div class="bloque"><div class="bloque-tit">Respaldo</div>' +
       '<div style="display:flex;flex-direction:column;gap:7px">' +
       '<button class="btn" data-exportar="json">' + icono('bajar') + 'Bajar respaldo completo (.json)</button>' +
@@ -3326,6 +3361,14 @@ function conectar(){
     mostrarResultado();
   };
 
+  /* --- importar: el boton avisa si el modo "solo telefonos" esta activo --- */
+  $('#pasoResultado').addEventListener('change', e => {
+    if (e.target.id === 'chkSoloTelefonos'){
+      const btn = $('#btnConfirmarImport');
+      if (btn) btn.textContent = rotuloConfirmar();
+    }
+  });
+
   /* --- ajustes --- */
   $('#cuerpoAjustes').addEventListener('change', e => {
     const r = ESTADO.ajustes.respaldo;
@@ -3445,6 +3488,7 @@ function conectar(){
       if (que === 'todo-rus')  return exportarXLSX(ESTADO.siniestros, true,  'planilla-siniestros-completa-' + sello + '.xlsx');
       if (que === 'todo-csv')  return exportarCSV(ESTADO.siniestros, false, 'planilla-siniestros-' + sello + '.csv');
       if (que === 'filtrado')  return exportarXLSX(listaVisible(), true, 'siniestros-filtrados-' + sello + '.xlsx');
+      if (que === 'telefonos') return exportarXLSX(ESTADO.siniestros, false, 'telefonos-' + sello + '.xlsx', COLUMNAS_TELEFONOS);
       if (que === 'json'){
         descargar('respaldo-siniestros-' + sello + '.json', JSON.stringify(compactar(ESTADO, false), null, 1), 'application/json');
         ESTADO.meta.ultimoRespaldoManual = new Date().toISOString();
